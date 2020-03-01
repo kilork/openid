@@ -33,6 +33,8 @@ pub mod bearer;
 pub mod client;
 pub mod error;
 pub mod provider;
+pub mod token;
+pub mod discovery;
 
 pub use bearer::Bearer;
 pub use client::Client;

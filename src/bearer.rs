@@ -16,6 +16,7 @@ pub struct Bearer {
         deserialize_with = "expire_in_to_instant"
     )]
     pub expires: Option<DateTime<Utc>>,
+    pub id_token: Option<String>,
 }
 
 fn expire_in_to_instant<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
