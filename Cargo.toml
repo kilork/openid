@@ -1,11 +1,11 @@
 [package]
 name = 'openid'
-version = '0.2.0'
+version = '0.2.1'
 authors = ['Alexander Korolev <kilork@yandex.ru>']
 edition = '2018'
 categories = []
 description = '''
-openid description.
+OpenID Connect & Discovery client library using async / await.
 '''
 homepage = 'https://github.com/kilork/openid'
 keywords = [
@@ -14,6 +14,7 @@ keywords = [
     'auth',
     'oauth',
     'openid',
+    'async'
 ]
 license = 'Unlicense OR MIT'
 readme = 'README.md'

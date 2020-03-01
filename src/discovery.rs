@@ -1,10 +1,10 @@
+use super::*;
 use crate::error::Error;
 use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use super::*;
 
 // TODO I wish we could impl default for this, but you cannot have a config without issuer etc
 #[derive(Debug, Deserialize, Serialize)]

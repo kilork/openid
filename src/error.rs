@@ -155,7 +155,6 @@ impl_from!(ClientError::Json, serde_json::Error);
 // impl_from!(ClientError::Parse, ParseError);
 impl_from!(ClientError::OAuth2, OAuth2Error);
 
-
 pub use biscuit::errors::Error as Jose;
 pub use reqwest::Error as Http;
 // pub use reqwest::UrlError as Url;
@@ -167,8 +166,8 @@ use failure::Fail;
 pub enum Error {
     #[fail(display = "{}", _0)]
     Jose(#[fail(cause)] Jose),
-//    #[fail(display = "{}", _0)]
-//    Oauth(#[fail(cause)] Oauth),
+    //    #[fail(display = "{}", _0)]
+    //    Oauth(#[fail(cause)] Oauth),
     #[fail(display = "{}", _0)]
     Http(#[fail(cause)] Http),
     // #[fail(display = "{}", _0)]

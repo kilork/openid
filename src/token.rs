@@ -4,7 +4,8 @@ pub use biscuit::jws::Compact as Jws;
 use biscuit::{CompactJson, Empty, SingleOrMultiple};
 use serde::{Deserialize, Serialize};
 use url::Url;
-type IdToken = Jws<Claims, Empty>;
+
+pub type IdToken = Jws<Claims, Empty>;
 
 /// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
 #[derive(Deserialize, Serialize, Debug)]
