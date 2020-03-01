@@ -26,7 +26,8 @@ openid = "0.2"
 
 This example provides only Rust part, assuming just default JHipster frontend settings.
 
-Cargo.toml
+Cargo.toml:
+
 ```toml
 [package]
 name = 'openid-example'
@@ -55,6 +56,8 @@ features = ['json']
 version = '2.0'
 features = ['rustls']
 ```
+
+src/main.rs:
 
 ```rust#ignore
 #[macro_use]
