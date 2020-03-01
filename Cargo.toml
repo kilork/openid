@@ -11,7 +11,6 @@ homepage = 'https://github.com/kilork/openid'
 keywords = [
     'authentication',
     'authorization',
-    'auth',
     'oauth',
     'openid',
     'async'
