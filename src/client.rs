@@ -588,19 +588,23 @@ impl<P: Provider> Client<P> {
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     pub async fn request_token(&self, code: &str) -> Result<Bearer, ClientError> {
-        let mut body = Serializer::new(String::new());
-        body.append_pair("grant_type", "authorization_code");
-        body.append_pair("code", code);
+        // Ensure the non thread-safe `Serializer` is not kept across
+        // an `await` boundary by localizing it to this inner scope.
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "authorization_code");
+            body.append_pair("code", code);
 
-        if let Some(ref redirect_uri) = self.redirect_uri {
-            body.append_pair("redirect_uri", redirect_uri);
-        }
+            if let Some(ref redirect_uri) = self.redirect_uri {
+                body.append_pair("redirect_uri", redirect_uri);
+            }
 
-        if self.provider.credentials_in_body() {
-            body.append_pair("client_id", &self.client_id);
-            body.append_pair("client_secret", &self.client_secret);
-        }
-        let body = body.finish();
+            if self.provider.credentials_in_body() {
+                body.append_pair("client_id", &self.client_id);
+                body.append_pair("client_secret", &self.client_secret);
+            }
+            body.finish()
+        };
 
         let json = self.post_token(body).await?;
         let token: Bearer = serde_json::from_value(json)?;
