@@ -1,11 +1,11 @@
 use chrono::{DateTime, Duration, Utc};
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{de::Visitor, ser::Serializer, Deserialize, Deserializer, Serialize};
 use std::fmt;
 
 /// The bearer token type.
 ///
 /// See [RFC 6750](http://tools.ietf.org/html/rfc6750).
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Bearer {
     pub access_token: String,
     pub scope: Option<String>,
@@ -13,7 +13,8 @@ pub struct Bearer {
     #[serde(
         default,
         rename = "expires_in",
-        deserialize_with = "expire_in_to_instant"
+        deserialize_with = "expire_in_to_instant",
+        serialize_with = "serialize_expire_in"
     )]
     pub expires: Option<DateTime<Utc>>,
     pub id_token: Option<String>,
@@ -49,6 +50,16 @@ where
     }
 
     deserializer.deserialize_option(ExpireInVisitor)
+}
+
+fn serialize_expire_in<S: Serializer>(
+    dt: &Option<DateTime<Utc>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match dt {
+        Some(dt) => serializer.serialize_some(&dt.timestamp()),
+        None => serializer.serialize_none(),
+    }
 }
 
 impl Bearer {
