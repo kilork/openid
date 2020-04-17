@@ -196,7 +196,7 @@ async fn login(
             let email = userinfo.email.clone();
 
             let user = User {
-                id: userinfo.sub.clone(),
+                id: userinfo.sub.clone().unwrap_or_default(),
                 login,
                 last_name: userinfo.family_name.clone(),
                 first_name: userinfo.name.clone(),
