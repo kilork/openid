@@ -1,25 +1,25 @@
-use super::*;
+use crate::discovery::{self, Config, Discovered};
+use crate::error::{
+    ClientError, Decode, Error, Expiry, Jose, Mismatch, Missing, Userinfo as ErrorUserinfo,
+    Validation,
+};
+use crate::{Bearer, Claims, IdToken, OAuth2Error, Provider, StandardClaims, Token};
 use biscuit::jwa::{self, SignatureAlgorithm};
 use biscuit::jwk::{AlgorithmParameters, JWKSet};
 use biscuit::jws::{Compact, Secret};
-use biscuit::{Empty, SingleOrMultiple};
+use biscuit::{CompactJson, Empty, SingleOrMultiple};
+use chrono::{Duration, NaiveDate, Utc};
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-// use std::error::Error;
-use crate::discovery::{self, Config, Discovered};
-use crate::error::{ClientError, Decode, Error, Expiry, Mismatch, Missing, Validation};
-use crate::token::{Claims, Token};
-use chrono::{Duration, NaiveDate, Utc};
+use std::marker::PhantomData;
 use url::{form_urlencoded::Serializer, Url};
 use validator::Validate;
 use validator_derive::Validate;
 
-type IdToken = Compact<Claims, Empty>;
-
 /// OAuth 2.0 client.
 #[derive(Debug)]
-pub struct Client<P> {
+pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OAuth provider.
     pub provider: P,
 
@@ -35,12 +35,13 @@ pub struct Client<P> {
     pub http_client: reqwest::Client,
 
     pub jwks: Option<JWKSet<Empty>>,
+    marker: PhantomData<C>,
 }
 
 // Common pattern in the Client::decode function when dealing with mismatched keys
 macro_rules! wrong_key {
     ($expected:expr, $actual:expr) => {
-        Err(error::Jose::WrongKeyType {
+        Err(Jose::WrongKeyType {
             expected: format!("{:?}", $expected),
             actual: format!("{:?}", $actual),
         }
@@ -48,7 +49,7 @@ macro_rules! wrong_key {
     };
 }
 
-impl Client<Discovered> {
+impl<C: CompactJson + Claims> Client<Discovered, C> {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub async fn discover(
         id: String,
@@ -142,9 +143,9 @@ impl Client<Discovered> {
         auth_code: &str,
         nonce: Option<&str>,
         max_age: Option<&Duration>,
-    ) -> Result<Token, Error> {
+    ) -> Result<Token<C>, Error> {
         let bearer = self.request_token(auth_code).await.map_err(Error::from)?;
-        let mut token: Token = bearer.into();
+        let mut token: Token<C> = bearer.into();
         if let Some(mut id_token) = token.id_token.as_mut() {
             self.decode_token(&mut id_token)?;
             self.validate_token(&id_token, nonce, max_age)?;
@@ -160,7 +161,7 @@ impl Client<Discovered> {
     /// - Jose::WrongKeyType if the alg of the key and the alg in the token header mismatch
     /// - Jose::WrongKeyType if the specified key alg isn't a signature algorithm
     /// - Jose error if decoding fails
-    pub fn decode_token(&self, token: &mut IdToken) -> Result<(), Error> {
+    pub fn decode_token(&self, token: &mut IdToken<C>) -> Result<(), Error> {
         // This is an early return if the token is already decoded
         if let Compact::Decoded { .. } = *token {
             return Ok(());
@@ -237,20 +238,20 @@ impl Client<Discovered> {
     /// - Validation::Missing::Authtime if a max_age was given and the token has no auth time
     pub fn validate_token(
         &self,
-        token: &IdToken,
+        token: &IdToken<C>,
         nonce: Option<&str>,
         max_age: Option<&Duration>,
     ) -> Result<(), Error> {
         let claims = token.payload()?;
 
-        if claims.iss != self.config().issuer {
+        if claims.iss() != &self.config().issuer {
             let expected = self.config().issuer.as_str().to_string();
-            let actual = claims.iss.as_str().to_string();
+            let actual = claims.iss().as_str().to_string();
             return Err(Validation::Mismatch(Mismatch::Issuer { expected, actual }).into());
         }
 
         match nonce {
-            Some(expected) => match claims.nonce {
+            Some(expected) => match claims.nonce() {
                 Some(ref actual) => {
                     if expected != actual {
                         let expected = expected.to_string();
@@ -263,23 +264,23 @@ impl Client<Discovered> {
                 None => return Err(Validation::Missing(Missing::Nonce).into()),
             },
             None => {
-                if claims.nonce.is_some() {
+                if claims.nonce().is_some() {
                     return Err(Validation::Missing(Missing::Nonce).into());
                 }
             }
         }
 
-        if !claims.aud.contains(&self.client_id) {
+        if !claims.aud().contains(&self.client_id) {
             return Err(Validation::Missing(Missing::Audience).into());
         }
         // By spec, if there are multiple auds, we must have an azp
-        if let SingleOrMultiple::Multiple(_) = claims.aud {
-            if let None = claims.azp {
+        if let SingleOrMultiple::Multiple(_) = claims.aud() {
+            if let None = claims.azp() {
                 return Err(Validation::Missing(Missing::AuthorizedParty).into());
             }
         }
         // If there is an authorized party, it must be our client_id
-        if let Some(ref actual) = claims.azp {
+        if let Some(ref actual) = claims.azp() {
             if actual != &self.client_id {
                 let expected = self.client_id.to_string();
                 let actual = actual.to_string();
@@ -294,19 +295,19 @@ impl Client<Discovered> {
         if now.timestamp() < 1504758600 {
             panic!("chrono::Utc::now() can never be before this was written!")
         }
-        if claims.exp <= now.timestamp() {
+        if claims.exp() <= now.timestamp() {
             return Err(Validation::Expired(Expiry::Expires(
-                chrono::naive::NaiveDateTime::from_timestamp(claims.exp, 0),
+                chrono::naive::NaiveDateTime::from_timestamp(claims.exp(), 0),
             ))
             .into());
         }
 
         if let Some(max) = max_age {
-            match claims.auth_time {
+            match claims.auth_time() {
                 Some(time) => {
                     let age = chrono::Duration::seconds(now.timestamp() - time);
                     if age >= *max {
-                        return Err(error::Validation::Expired(Expiry::MaxAge(age)).into());
+                        return Err(Validation::Expired(Expiry::MaxAge(age)).into());
                     }
                 }
                 None => return Err(Validation::Missing(Missing::AuthTime).into()),
@@ -325,7 +326,7 @@ impl Client<Discovered> {
     /// - Error::Http if something goes wrong getting the document
     /// - Error::Json if the response is not a valid Userinfo document
     /// - Userinfo::MismatchSubject if the returned userinfo document and tokens subject mismatch
-    pub async fn request_userinfo(&self, token: &Token) -> Result<Userinfo, Error> {
+    pub async fn request_userinfo(&self, token: &Token<C>) -> Result<Userinfo, Error> {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
                 let claims = token.id_token.as_ref().map(|x| x.payload()).transpose()?;
@@ -338,15 +339,15 @@ impl Client<Discovered> {
                     .await?;
                 let info: Userinfo = resp.json().await?;
                 if let Some(claims) = claims {
-                    if claims.sub != info.sub {
+                    if claims.sub() != info.sub {
                         let expected = info.sub.clone();
-                        let actual = claims.sub.clone();
-                        return Err(error::Userinfo::MismatchSubject { expected, actual }.into());
+                        let actual = claims.sub().to_string();
+                        return Err(ErrorUserinfo::MismatchSubject { expected, actual }.into());
                     }
                 }
                 Ok(info)
             }
-            None => Err(error::Userinfo::NoUrl.into()),
+            None => Err(ErrorUserinfo::NoUrl.into()),
         }
     }
 }
@@ -481,16 +482,20 @@ pub struct Address {
     pub country: Option<String>,
 }
 
-impl<P: Provider> Client<P> {
+impl<P, C> Client<P, C>
+where
+    P: Provider,
+    C: CompactJson + Claims,
+{
     /// Creates a client.
     ///
     /// # Examples
     ///
     /// ```
-    /// use openid::Client;
+    /// use openid::{Client, StandardClaims};
     /// use openid::provider::google::Installed;
     ///
-    /// let client = Client::new(
+    /// let client: Client<_, StandardClaims> = Client::new(
     ///     Installed,
     ///     String::from("CLIENT_ID"),
     ///     String::from("CLIENT_SECRET"),
@@ -513,6 +518,7 @@ impl<P: Provider> Client<P> {
             redirect_uri,
             http_client,
             jwks,
+            marker: PhantomData,
         }
     }
 
@@ -526,7 +532,7 @@ impl<P: Provider> Client<P> {
     /// use openid::Client;
     /// use openid::provider::google::Installed;
     ///
-    /// let client = Client::new(
+    /// let client: Client<_> = Client::new(
     ///     Installed,
     ///     String::from("CLIENT_ID"),
     ///     String::from("CLIENT_SECRET"),
@@ -610,12 +616,7 @@ impl<P: Provider> Client<P> {
         let token: Bearer = serde_json::from_value(json)?;
         Ok(token)
     }
-}
 
-impl<P> Client<P>
-where
-    P: Provider,
-{
     /// Refreshes an access token.
     ///
     /// See [RFC 6749, section 6](http://tools.ietf.org/html/rfc6749#section-6).
@@ -693,7 +694,7 @@ mod tests {
     #[test]
     fn auth_uri() {
         let http_client = reqwest::Client::new();
-        let client = Client::new(
+        let client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -710,7 +711,7 @@ mod tests {
     #[test]
     fn auth_uri_with_redirect_uri() {
         let http_client = reqwest::Client::new();
-        let client = Client::new(
+        let client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -727,7 +728,7 @@ mod tests {
     #[test]
     fn auth_uri_with_scope() {
         let http_client = reqwest::Client::new();
-        let client = Client::new(
+        let client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -744,7 +745,7 @@ mod tests {
     #[test]
     fn auth_uri_with_state() {
         let http_client = reqwest::Client::new();
-        let client = Client::new(
+        let client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),

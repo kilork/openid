@@ -19,7 +19,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.2"
+openid = "0.3"
 ```
 
 ### Use case: [Actix](https://actix.rs/) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -42,7 +42,7 @@ actix-rt = '1.0'
 exitfailure = "0.5"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = "2.1"
-openid = "0.2"
+openid = "0.3"
 
 [dependencies.serde]
 version = '1.0'
@@ -267,7 +267,8 @@ async fn main() -> Result<(), ExitFailure> {
     let issuer = reqwest::Url::parse("https://accounts.google.com")?;
     eprintln!("redirect: {:?}", redirect);
     eprintln!("issuer: {}", issuer);
-    let client = openid::Client::discover(client_id, client_secret, redirect, issuer).await?;
+    let client =
+        openid::DiscoveredClient::discover(client_id, client_secret, redirect, issuer).await?;
 
     eprintln!("discovered config: {:?}", client.config());
 
@@ -315,18 +316,23 @@ async fn main() -> Result<(), ExitFailure> {
 #[macro_use]
 extern crate lazy_static;
 
-pub mod bearer;
-pub mod client;
-pub mod discovery;
-pub mod error;
+mod bearer;
+mod claims;
+mod client;
+mod discovery;
+mod error;
 pub mod provider;
-pub mod token;
+mod token;
 
 pub use bearer::Bearer;
+pub use biscuit::jws::Compact as Jws;
+pub use biscuit::{Compact, CompactJson, Empty};
+pub use claims::{Claims, StandardClaims};
 pub use client::{Client, Options, Userinfo};
 pub use discovery::Discovered;
 pub use error::{OAuth2Error, OAuth2ErrorCode};
 pub use provider::Provider;
-pub use token::{IdToken, Token};
+pub use token::Token;
 
-pub type DiscoveredClient = Client<Discovered>;
+type IdToken<T> = Jws<T, Empty>;
+pub type DiscoveredClient = Client<Discovered, StandardClaims>;
