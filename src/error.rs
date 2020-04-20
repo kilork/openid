@@ -1,3 +1,6 @@
+/*!
+OAuth 2.0 errors.
+*/
 use serde::Deserialize;
 use std::{error, fmt};
 

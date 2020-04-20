@@ -1,3 +1,6 @@
+/*!
+OAuth 2.0 providers.
+*/
 use url::Url;
 
 /// OAuth 2.0 providers.
