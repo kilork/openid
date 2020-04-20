@@ -316,23 +316,42 @@ async fn main() -> Result<(), ExitFailure> {
 #[macro_use]
 extern crate lazy_static;
 
+mod address;
 mod bearer;
 mod claims;
 mod client;
-mod discovery;
-mod error;
+mod config;
+mod discovered;
+mod display;
+pub mod error;
+mod options;
+mod prompt;
 pub mod provider;
+mod standard_claims;
 mod token;
+mod userinfo;
 
+pub use ::biscuit::jws::Compact as Jws;
+pub use ::biscuit::{Compact, CompactJson, Empty, SingleOrMultiple};
+pub use address::Address;
 pub use bearer::Bearer;
-pub use biscuit::jws::Compact as Jws;
-pub use biscuit::{Compact, CompactJson, Empty};
-pub use claims::{Claims, StandardClaims};
-pub use client::{Client, Options, Userinfo};
-pub use discovery::Discovered;
+pub use claims::Claims;
+pub use client::Client;
+pub use config::Config;
+pub use discovered::Discovered;
+pub use display::Display;
 pub use error::{OAuth2Error, OAuth2ErrorCode};
+pub use options::Options;
+pub use prompt::Prompt;
 pub use provider::Provider;
+pub use standard_claims::StandardClaims;
 pub use token::Token;
+pub use userinfo::Userinfo;
+
+/// Reimport `biscuit` depdendency.
+pub mod biscuit {
+    pub use biscuit::*;
+}
 
 type IdToken<T> = Jws<T, Empty>;
 pub type DiscoveredClient = Client<Discovered, StandardClaims>;
