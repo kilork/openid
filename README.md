@@ -298,3 +298,5 @@ async fn main() -> Result<(), ExitFailure> {
     Ok(())
 }
 ```
+
+See full example: [openid-example](https://github.com/kilork/openid-example)
