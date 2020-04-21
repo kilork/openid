@@ -1,11 +1,10 @@
-use crate::{Userinfo, Claims};
+use crate::{Claims, Userinfo};
 use biscuit::{CompactJson, SingleOrMultiple};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-
 /// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]
 pub struct StandardClaims {
     pub iss: Url,
     // Max 255 ASCII chars

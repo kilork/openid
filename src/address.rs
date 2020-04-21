@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Address Claim struct. Can be only formatted, only the rest, or both.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct Address {
     #[serde(default)]
     /// Full mailing address, formatted for display or use on a mailing label. This field MAY contain multiple lines, separated by newlines. Newlines can be represented either as a carriage return/line feed pair ("\r\n") or as a single line feed character ("\n").
