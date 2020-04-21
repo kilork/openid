@@ -18,7 +18,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.2"
+openid = "0.3"
 ```
 
 ### Use case: [Actix](https://actix.rs/) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -41,7 +41,7 @@ actix-rt = '1.0'
 exitfailure = "0.5"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = "2.1"
-openid = "0.2"
+openid = "0.3"
 
 [dependencies.serde]
 version = '1.0'
@@ -195,7 +195,7 @@ async fn login(
             let email = userinfo.email.clone();
 
             let user = User {
-                id: userinfo.sub.clone(),
+                id: userinfo.sub.clone().unwrap_or_default(),
                 login,
                 last_name: userinfo.family_name.clone(),
                 first_name: userinfo.name.clone(),
@@ -266,7 +266,8 @@ async fn main() -> Result<(), ExitFailure> {
     let issuer = reqwest::Url::parse("https://accounts.google.com")?;
     eprintln!("redirect: {:?}", redirect);
     eprintln!("issuer: {}", issuer);
-    let client = openid::Client::discover(client_id, client_secret, redirect, issuer).await?;
+    let client =
+        openid::DiscoveredClient::discover(client_id, client_secret, redirect, issuer).await?;
 
     eprintln!("discovered config: {:?}", client.config());
 
