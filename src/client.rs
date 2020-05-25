@@ -125,7 +125,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
             None => String::from("openid"),
         };
 
-        let mut url = self.auth_uri(Some(&scope), options.state.as_ref().map(String::as_str));
+        let mut url = self.auth_uri(Some(&scope), options.state.as_deref());
         {
             let mut query = url.query_pairs_mut();
             if let Some(ref nonce) = options.nonce {
@@ -212,7 +212,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         };
 
         if let Some(alg) = key.common.algorithm.as_ref() {
-            if let &jwa::Algorithm::Signature(sig) = alg {
+            if let jwa::Algorithm::Signature(sig) = *alg {
                 if header.registered.algorithm != sig {
                     return wrong_key!(sig, header.registered.algorithm);
                 }
@@ -302,7 +302,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         }
         // By spec, if there are multiple auds, we must have an azp
         if let SingleOrMultiple::Multiple(_) = claims.aud() {
-            if let None = claims.azp() {
+            if claims.azp().is_none() {
                 return Err(Validation::Missing(Missing::AuthorizedParty).into());
             }
         }
@@ -530,8 +530,7 @@ where
             "refresh_token",
             token
                 .refresh_token
-                .as_ref()
-                .map(String::as_str)
+                .as_deref()
                 .expect("No refresh_token field"),
         );
 
