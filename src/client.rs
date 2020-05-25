@@ -50,6 +50,11 @@ pub enum Uma2ClaimTokenFormat {
     OidcIdToken // https://openid.net/specs/openid-connect-core-1_0.html#IDToken
 }
 
+pub enum Uma2AuthenticationMethod {
+    Bearer,
+    Basic
+}
+
 impl ToString for Uma2ClaimTokenFormat {
     fn to_string(&self) -> String {
         if let OAuthJwt = *self {
@@ -557,19 +562,48 @@ where
         }
     }
 
+    ///
     /// Obtain an RPT from a UMA2 compliant OIDC server
+    ///
+    ///  # Arguments
+    /// * `token` Bearer token to do the RPT call
+    /// * `ticket` The most recent permission ticket received by the client as part of the UMA authorization process
+    /// * `claim_token` A string representing additional claims that should be considered by the
+    ///     server when evaluating permissions for the resource(s) and scope(s) being requested.
+    /// * `claim_token_format` urn:ietf:params:oauth:token-type:jwt or https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+    /// * `rpt` A previously issued RPT which permissions should also be evaluated and added in a
+    ///     new one. This parameter allows clients in possession of an RPT to perform incremental
+    ///     authorization where permissions are added on demand.
+    /// * `permission` String representing a set of one or more resources and scopes the client is
+    ///     seeking access. This parameter can be defined multiple times in order to request
+    ///     permission for multiple resource and scopes. This parameter is an extension to
+    ///     urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to allow clients to
+    ///     send authorization requests without a permission ticket
+    /// * `audience` The client identifier of the resource server to which the client is seeking
+    ///  access. This parameter is mandatory in case the permission parameter is defined
+    /// * `response_include_resource_name` A boolean value indicating to the server whether
+    ///     resource names should be included in the RPT’s permissions. If false, only the
+    ///     resource identifier is included
+    /// * `response_permissions_limit` An integer N that defines a limit for the amount of
+    ///     permissions an RPT can have. When used together with rpt parameter, only the last N
+    ///     requested permissions will be kept in the RPT.
+    /// * `submit_request` A boolean value indicating whether the server should create permission
+    ///     requests to the resources and scopes referenced by a permission ticket. This parameter
+    ///     only have effect if used together with the ticket parameter as part of a UMA authorization process
     pub async fn obtain_requesting_party_token(
-        &self, token: String,
-        ticket: Option<String>, // The most recent permission ticket received by the client as part of the UMA authorization process
-        claim_token: Option<String>, // A string representing additional claims that should be considered by the server when evaluating permissions for the resource(s) and scope(s) being requested.
-        claim_token_format: Option<Uma2ClaimTokenFormat>, // urn:ietf:params:oauth:token-type:jwt or https://openid.net/specs/openid-connect-core-1_0.html#IDToken
-        rpt: Option<String>, // A previously issued RPT which permissions should also be evaluated and added in a new one. This parameter allows clients in possession of an RPT to perform incremental authorization where permissions are added on demand.
-        permission: Option<Vec<String>>, // string representing a set of one or more resources and scopes the client is seeking access. This parameter can be defined multiple times in order to request permission for multiple resource and scopes. This parameter is an extension to urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to allow clients to send authorization requests without a permission ticket
-        audience: Option<String>, // The client identifier of the resource server to which the client is seeking access. This parameter is mandatory in case the permission parameter is defined
-        response_include_resource_name: Option<bool>, // A boolean value indicating to the server whether resource names should be included in the RPT’s permissions. If false, only the resource identifier is included
-        response_permissions_limit: Option<u32>, // An integer N that defines a limit for the amount of permissions an RPT can have. When used together with rpt parameter, only the last N requested permissions will be kept in the RPT.
-        submit_request: Option<bool> // A boolean value indicating whether the server should create permission requests to the resources and scopes referenced by a permission ticket. This parameter only have effect if used together with the ticket parameter as part of a UMA authorization process
-    ) -> Result<Bearer, ClientError> {
+        &self,
+        token: String,
+        auth_method: Uma2AuthenticationMethod,
+        ticket: Option<String>,
+        claim_token: Option<String>,
+        claim_token_format: Option<Uma2ClaimTokenFormat>,
+        rpt: Option<String>,
+        permission: Option<Vec<String>>,
+        audience: Option<String>,
+        response_include_resource_name: Option<bool>,
+        response_permissions_limit: Option<u32>,
+        submit_request: Option<bool>
+    ) -> Result<String, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -629,12 +663,16 @@ where
         }
 
         let body = body.finish();
+        let auth_method = match auth_method {
+            Uma2AuthenticationMethod::Basic => format!("Basic {:}", token),
+            Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token)
+        };
 
         let json = self
             .http_client
             .post(self.provider.token_uri().clone())
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .header(AUTHORIZATION, format!("Bearer {:}", token).as_str())
+            .header(AUTHORIZATION, auth_method.as_str())
             .body(body)
             .send()
             .await?
@@ -647,7 +685,7 @@ where
             Err(ClientError::from(error))
         } else {
             let new_token: Bearer = serde_json::from_value(json)?;
-            Ok(new_token)
+            Ok(new_token.access_token)
         }
     }
 }
