@@ -862,7 +862,6 @@ where
         let json = self
             .http_client
             .delete(url)
-            .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
             .send()
             .await?
@@ -875,6 +874,114 @@ where
             Err(ClientError::from(error))
         } else {
             Ok(())
+        }
+    }
+
+    /// Get a UMA2 managed resource by its identifier
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `id` The server identifier of the resource
+    pub async fn get_uma2_resource_by_id(&self, pat_token: String, id: String) -> Result<Uma2Resource, ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.resource_registration_uri().is_none() {
+            return Err(ClientError::Uma2(NoResourceSetEndpoint));
+        }
+
+        let mut url = self.provider.resource_registration_uri().unwrap().clone();
+
+        url.path_segments_mut()
+            .map_err(|_| ClientError::Uma2(ResourceSetEndpointMalformed))?
+            .extend(&[id]);
+
+        let json = self
+            .http_client
+            .get(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let resource: Uma2Resource = serde_json::from_value(json)?;
+            Ok(resource)
+        }
+    }
+
+    ///
+    /// Search for a UMA2 resource
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `name` Search by the resource's name
+    /// * `uri` Search by the resource's uri
+    /// * `owner` Search by the resource's owner
+    /// * `resource_type` Search by the resource's type
+    /// * `scope` Search by the resource's scope
+    ///
+    pub async fn search_for_uma2_resources(
+        &self,
+        pat_token: String,
+        name: Option<String>,
+        uri: Option<String>,
+        owner: Option<String>,
+        resource_type: Option<String>,
+        scope: Option<String>
+    ) -> Result<Vec<Uma2Resource>, ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.resource_registration_uri().is_none() {
+            return Err(ClientError::Uma2(NoResourceSetEndpoint));
+        }
+
+        let mut url = self.provider.resource_registration_uri().unwrap().clone();
+        {
+            let mut query = url.query_pairs_mut();
+            if name.is_some() {
+                query.append_pair("name", name.unwrap().as_str());
+            }
+            if uri.is_some() {
+                query.append_pair("uri", uri.unwrap().as_str());
+            }
+            if owner.is_some() {
+                query.append_pair("owner", owner.unwrap().as_str());
+            }
+            if resource_type.is_some() {
+                query.append_pair("type", resource_type.unwrap().as_str());
+            }
+            if scope.is_some() {
+                query.append_pair("scope", scope.unwrap().as_str());
+            }
+        }
+
+        let json = self
+            .http_client
+            .get(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let resources: Vec<Uma2Resource> = serde_json::from_value(json)?;
+            Ok(resources)
         }
     }
 }
