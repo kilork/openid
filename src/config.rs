@@ -87,6 +87,16 @@ pub struct Config {
     // This is a NONSTANDARD extension Google uses that is a part of the Oauth discovery draft
     #[serde(default)]
     pub code_challenge_methods_supported: Option<Vec<String>>,
+
+    // UMA2 additions
+    #[serde(default)]
+    pub resource_registration_endpoint: Option<Url>,
+    #[serde(default)]
+    pub permission_endpoint: Option<Url>,
+    #[serde(default)]
+    pub policy_endpoint: Option<Url>,
+    #[serde(default)]
+    pub introspection_endpoint: Option<Url>
 }
 
 // This seems really dumb...
