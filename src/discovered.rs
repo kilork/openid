@@ -15,8 +15,16 @@ impl Provider for Discovered {
         &self.0.token_endpoint
     }
 
+    fn uma2_discovered(&self) -> bool {
+        self.1.is_some()
+    }
+
     fn resource_registration_uri(&self) -> Option<&Url> {
         self.1.as_ref().and_then(|i| i.resource_registration_endpoint.as_ref())
+    }
+
+    fn permission_uri(&self) -> Option<&Url> {
+        self.1.as_ref().and_then(|i| i.permission_endpoint.as_ref())
     }
 }
 

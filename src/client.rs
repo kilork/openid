@@ -18,6 +18,8 @@ use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde_json::Value;
 use std::marker::PhantomData;
 use url::{form_urlencoded::Serializer, Url};
+use crate::client::Uma2ClaimTokenFormat::OAuthJwt;
+use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired};
 
 /// OAuth 2.0 client.
 #[derive(Debug)]
@@ -38,6 +40,24 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
 
     pub jwks: Option<JWKSet<Empty>>,
     marker: PhantomData<C>,
+}
+
+
+/// UMA2 claim token format
+/// Either is an access token (urn:ietf:params:oauth:token-type:jwt) or an OIDC ID token
+pub enum Uma2ClaimTokenFormat {
+    OAuthJwt, // urn:ietf:params:oauth:token-type:jwt
+    OidcIdToken // https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+}
+
+impl ToString for Uma2ClaimTokenFormat {
+    fn to_string(&self) -> String {
+        if self == OAuthJwt {
+            String::from("urn:ietf:params:oauth:token-type:jwt")
+        } else {
+            String::from("https://openid.net/specs/openid-connect-core-1_0.html#IDToken")
+        }
+    }
 }
 
 // Common pattern in the Client::decode function when dealing with mismatched keys
@@ -536,6 +556,32 @@ where
             Ok(token)
         }
     }
+
+    /// Obtain an RPT from an UMA2
+    pub async fn obtain_requesting_party_token(
+        &self, token: Bearer,
+        ticket: Option<String>, // The most recent permission ticket received by the client as part of the UMA authorization process
+        claim_token: Option<String>, // A string representing additional claims that should be considered by the server when evaluating permissions for the resource(s) and scope(s) being requested.
+        claim_token_format: Option<Uma2ClaimTokenFormat>, // urn:ietf:params:oauth:token-type:jwt or https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+        rpt: Option<String>, // A previously issued RPT which permissions should also be evaluated and added in a new one. This parameter allows clients in possession of an RPT to perform incremental authorization where permissions are added on demand.
+        permission: Option<Vec<String>>, // string representing a set of one or more resources and scopes the client is seeking access. This parameter can be defined multiple times in order to request permission for multiple resource and scopes. This parameter is an extension to urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to allow clients to send authorization requests without a permission ticket
+        audience: Option<String>, // The client identifier of the resource server to which the client is seeking access. This parameter is mandatory in case the permission parameter is defined
+        response_include_resource_name: Option<bool>, // A boolean value indicating to the server whether resource names should be included in the RPT’s permissions. If false, only the resource identifier is included
+        response_permissions_limit: Option<u64>, // An integer N that defines a limit for the amount of permissions an RPT can have. When used together with rpt parameter, only the last N requested permissions will be kept in the RPT.
+        submit_request: Option<bool> // A boolean value indicating whether the server should create permission requests to the resources and scopes referenced by a permission ticket. This parameter only have effect if used together with the ticket parameter as part of a UMA authorization process
+    ) -> Result<Bearer, ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if let Some(p) = permission {
+            if p.is_empty() && audience.is_none() {
+                return Err(ClientError::Uma2(AudienceFieldRequired));
+            }
+        }
+
+        Err(ClientError::Uma2(NoUma2Discovered))
+    }
 }
 
 #[cfg(test)]
@@ -555,6 +601,9 @@ mod tests {
         fn token_uri(&self) -> &Url {
             &self.token_uri
         }
+        fn uma2_discovered(&self) -> bool { false }
+        fn resource_registration_uri(&self) -> Option<&Url> { None }
+        fn permission_uri(&self) -> Option<&Url> { None }
     }
     impl Test {
         fn new() -> Self {

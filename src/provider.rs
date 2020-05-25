@@ -25,7 +25,17 @@ pub trait Provider {
         false
     }
 
+    /// Whether UMA2 capabilities have been discovered
+    fn uma2_discovered(&self) -> bool;
+
+    /// UMA-compliant Resource Registration Endpoint which resource servers can use to manage their
+    /// protected resources and scopes. This endpoint provides operations create, read, update and
+    /// delete resources and scopes
     fn resource_registration_uri(&self) -> Option<&Url>;
+
+    /// UMA-compliant Permission Endpoint which resource servers can use to manage permission
+    /// tickets. This endpoint provides operations create, read, update, and delete permission tickets
+    fn permission_uri(&self) -> Option<&Url>;
 }
 
 /// Google OAuth 2.0 providers.
@@ -71,7 +81,9 @@ pub mod google {
         fn token_uri(&self) -> &Url {
             &TOKEN_URI
         }
+        fn uma2_discovered(&self) -> bool { false }
         fn resource_registration_uri(&self) -> Option<&Url> { None }
+        fn permission_uri(&self) -> Option<&Url> { None }
     }
 
     /// Google OAuth 2.0 provider for installed applications.
@@ -87,7 +99,9 @@ pub mod google {
         fn token_uri(&self) -> &Url {
             &TOKEN_URI
         }
+        fn uma2_discovered(&self) -> bool { false }
         fn resource_registration_uri(&self) -> Option<&Url> { None }
+        fn permission_uri(&self) -> Option<&Url> { None }
     }
 }
 
@@ -112,7 +126,9 @@ impl Provider for GitHub {
     fn token_uri(&self) -> &Url {
         &GITHUB_TOKEN_URI
     }
+    fn uma2_discovered(&self) -> bool { false }
     fn resource_registration_uri(&self) -> Option<&Url> { None }
+    fn permission_uri(&self) -> Option<&Url> { None }
 }
 
 /// Imgur OAuth 2.0 provider.
@@ -127,7 +143,9 @@ impl Provider for Imgur {
     fn token_uri(&self) -> &Url {
         &IMGUR_TOKEN_URI
     }
+    fn uma2_discovered(&self) -> bool { false }
     fn resource_registration_uri(&self) -> Option<&Url> { None }
+    fn permission_uri(&self) -> Option<&Url> { None }
 }
 
 #[test]

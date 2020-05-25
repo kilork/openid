@@ -103,7 +103,15 @@ pub enum ClientError {
 
     /// OAuth 2.0 error.
     OAuth2(OAuth2Error),
+
+    Uma2(Uma2Error)
 }
+
+pub enum Uma2Error {
+    NoUma2Discovered,
+    AudienceFieldRequired
+}
+
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
@@ -113,6 +121,16 @@ impl fmt::Display for ClientError {
             ClientError::Json(ref err) => write!(f, "{}", err),
             // ClientError::Parse(ref err) => write!(f, "{}", err),
             ClientError::OAuth2(ref err) => write!(f, "{}", err),
+            ClientError::Uma2(ref err) => write!(f, "{}", err)
+        }
+    }
+}
+
+impl fmt::Display for Uma2Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            Uma2Error::NoUma2Discovered => write!(f, "No UMA2 discovered"),
+            Uma2Error::AudienceFieldRequired => write!(f, "Audience field required")
         }
     }
 }
@@ -126,6 +144,7 @@ impl std::error::Error for ClientError {
             ClientError::Json(ref err) => Some(err),
             // ClientError::Parse(ref err) => Some(err),
             ClientError::OAuth2(ref err) => Some(err),
+            ClientError::Uma2(ref err) => Some(err)
         }
     }
 }
