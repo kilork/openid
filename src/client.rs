@@ -18,8 +18,9 @@ use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 use std::marker::PhantomData;
 use url::{form_urlencoded::Serializer, Url};
+use serde::{Deserialize, Serialize};
 use crate::client::Uma2ClaimTokenFormat::OAuthJwt;
-use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired};
+use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired, NoResourceSetEndpoint, ResourceSetEndpointMalformed};
 
 /// OAuth 2.0 client.
 #[derive(Debug)]
@@ -63,6 +64,21 @@ impl ToString for Uma2ClaimTokenFormat {
             String::from("https://openid.net/specs/openid-connect-core-1_0.html#IDToken")
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Uma2Resource {
+    #[serde(rename = "_id")]
+    id: Option<String>,
+    name: String,
+    #[serde(rename = "type")]
+    resource_type: Option<String>,
+    icon_uri: Option<String>,
+    resource_scopes: Option<Vec<String>>,
+    description: Option<String>,
+    owner: Option<String>,
+    #[serde(rename = "ownerManagedAccess")]
+    owner_managed_access: Option<bool>
 }
 
 // Common pattern in the Client::decode function when dealing with mismatched keys
@@ -685,6 +701,180 @@ where
         } else {
             let new_token: Bearer = serde_json::from_value(json)?;
             Ok(new_token.access_token)
+        }
+    }
+
+    ///
+    /// Create a UMA2 managed resource
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// uma_protection scope defined
+    /// * `name` User readable name for this resource.
+    /// * `resource_type` The type of resource. Helps to categorise resources
+    /// * `icon_uri` User visible icon's URL
+    /// * `resource_scopes` A list of scopes attached to this resource
+    /// * `description` A readable description
+    /// * `owner` Resource server is the default user, unless this value is set. Can be the username
+    /// of the user or its server identifier
+    /// * `owner_managed_access` Whether to allow user managed access of this resource
+    pub async fn create_uma2_resource(
+        &self,
+        pat_token: String,
+        name: String,
+        resource_type: Option<String>,
+        icon_uri: Option<String>,
+        resource_scopes: Option<Vec<String>>,
+        description: Option<String>,
+        owner: Option<String>,
+        owner_managed_access: Option<bool>
+    ) -> Result<Uma2Resource, ClientError> {
+
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.resource_registration_uri().is_none() {
+            return Err(ClientError::Uma2(NoResourceSetEndpoint));
+        }
+
+        let url = self.provider.resource_registration_uri().unwrap().clone();
+
+        let body = Uma2Resource {
+            id: None,
+            name,
+            resource_type,
+            icon_uri,
+            resource_scopes,
+            description,
+            owner,
+            owner_managed_access
+        };
+
+        let json = self
+            .http_client
+            .post(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .json(&body)
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let resource: Uma2Resource = serde_json::from_value(json)?;
+            Ok(resource)
+        }
+    }
+
+    ///
+    /// Update a UMA2 managed resource
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// uma_protection scope defined
+    /// * `name` User readable name for this resource.
+    /// * `resource_type` The type of resource. Helps to categorise resources
+    /// * `icon_uri` User visible icon's URL
+    /// * `resource_scopes` A list of scopes attached to this resource
+    /// * `description` A readable description
+    /// * `owner` Resource server is the default user, unless this value is set. Can be the username
+    /// of the user or its server identifier
+    /// * `owner_managed_access` Whether to allow user managed access of this resource
+    pub async fn update_uma2_resource(
+        &self,
+        pat_token: String,
+        name: String,
+        resource_type: Option<String>,
+        icon_uri: Option<String>,
+        resource_scopes: Option<Vec<String>>,
+        description: Option<String>,
+        owner: Option<String>,
+        owner_managed_access: Option<bool>
+    ) -> Result<Uma2Resource, ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.resource_registration_uri().is_none() {
+            return Err(ClientError::Uma2(NoResourceSetEndpoint));
+        }
+
+        let url = self.provider.resource_registration_uri().unwrap().clone();
+
+        let body = Uma2Resource {
+            id: None,
+            name,
+            resource_type,
+            icon_uri,
+            resource_scopes,
+            description,
+            owner,
+            owner_managed_access
+        };
+
+        let json = self
+            .http_client
+            .put(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .json(&body)
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let resource: Uma2Resource = serde_json::from_value(json)?;
+            Ok(resource)
+        }
+    }
+
+    /// Deletes a UMA2 managed resource
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `id` The server identifier of the resource
+    pub async fn delete_uma2_resource(&self, pat_token: String, id: String) -> Result<(), ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.resource_registration_uri().is_none() {
+            return Err(ClientError::Uma2(NoResourceSetEndpoint));
+        }
+
+        let mut url = self.provider.resource_registration_uri().unwrap().clone();
+
+        url.path_segments_mut()
+            .map_err(|_| ClientError::Uma2(ResourceSetEndpointMalformed))?
+            .extend(&[id]);
+
+        let json = self
+            .http_client
+            .delete(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            Ok(())
         }
     }
 }

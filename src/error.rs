@@ -110,7 +110,9 @@ pub enum ClientError {
 #[derive(Debug)]
 pub enum Uma2Error {
     NoUma2Discovered,
-    AudienceFieldRequired
+    AudienceFieldRequired,
+    NoResourceSetEndpoint,
+    ResourceSetEndpointMalformed
 }
 
 impl error::Error for Uma2Error {
@@ -137,7 +139,9 @@ impl fmt::Display for Uma2Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             Uma2Error::NoUma2Discovered => write!(f, "No UMA2 discovered"),
-            Uma2Error::AudienceFieldRequired => write!(f, "Audience field required")
+            Uma2Error::AudienceFieldRequired => write!(f, "Audience field required"),
+            Uma2Error::NoResourceSetEndpoint => write!(f, "No resource_set endpoint discovered"),
+            Uma2Error::ResourceSetEndpointMalformed => write!(f, "resource_set endpoint is malformed")
         }
     }
 }
