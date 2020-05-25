@@ -107,9 +107,16 @@ pub enum ClientError {
     Uma2(Uma2Error)
 }
 
+#[derive(Debug)]
 pub enum Uma2Error {
     NoUma2Discovered,
     AudienceFieldRequired
+}
+
+impl error::Error for Uma2Error {
+    fn description(&self) -> &str {
+        "UMA2 API error"
+    }
 }
 
 impl fmt::Display for ClientError {

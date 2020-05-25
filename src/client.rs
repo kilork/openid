@@ -14,7 +14,7 @@ use biscuit::{
     CompactJson, Empty, SingleOrMultiple,
 };
 use chrono::{Duration, Utc};
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 use std::marker::PhantomData;
 use url::{form_urlencoded::Serializer, Url};
@@ -52,7 +52,7 @@ pub enum Uma2ClaimTokenFormat {
 
 impl ToString for Uma2ClaimTokenFormat {
     fn to_string(&self) -> String {
-        if self == OAuthJwt {
+        if let OAuthJwt = *self {
             String::from("urn:ietf:params:oauth:token-type:jwt")
         } else {
             String::from("https://openid.net/specs/openid-connect-core-1_0.html#IDToken")
@@ -557,9 +557,9 @@ where
         }
     }
 
-    /// Obtain an RPT from an UMA2
+    /// Obtain an RPT from a UMA2 compliant OIDC server
     pub async fn obtain_requesting_party_token(
-        &self, token: Bearer,
+        &self, token: String,
         ticket: Option<String>, // The most recent permission ticket received by the client as part of the UMA authorization process
         claim_token: Option<String>, // A string representing additional claims that should be considered by the server when evaluating permissions for the resource(s) and scope(s) being requested.
         claim_token_format: Option<Uma2ClaimTokenFormat>, // urn:ietf:params:oauth:token-type:jwt or https://openid.net/specs/openid-connect-core-1_0.html#IDToken
@@ -567,20 +567,88 @@ where
         permission: Option<Vec<String>>, // string representing a set of one or more resources and scopes the client is seeking access. This parameter can be defined multiple times in order to request permission for multiple resource and scopes. This parameter is an extension to urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to allow clients to send authorization requests without a permission ticket
         audience: Option<String>, // The client identifier of the resource server to which the client is seeking access. This parameter is mandatory in case the permission parameter is defined
         response_include_resource_name: Option<bool>, // A boolean value indicating to the server whether resource names should be included in the RPT’s permissions. If false, only the resource identifier is included
-        response_permissions_limit: Option<u64>, // An integer N that defines a limit for the amount of permissions an RPT can have. When used together with rpt parameter, only the last N requested permissions will be kept in the RPT.
+        response_permissions_limit: Option<u32>, // An integer N that defines a limit for the amount of permissions an RPT can have. When used together with rpt parameter, only the last N requested permissions will be kept in the RPT.
         submit_request: Option<bool> // A boolean value indicating whether the server should create permission requests to the resources and scopes referenced by a permission ticket. This parameter only have effect if used together with the ticket parameter as part of a UMA authorization process
     ) -> Result<Bearer, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
 
-        if let Some(p) = permission {
+        if let Some(p) = permission.as_ref() {
             if p.is_empty() && audience.is_none() {
                 return Err(ClientError::Uma2(AudienceFieldRequired));
             }
         }
 
-        Err(ClientError::Uma2(NoUma2Discovered))
+        let mut body = Serializer::new(String::new());
+        body.append_pair("grant_type", "urn:ietf:params:oauth:grant-type:uma-ticket");
+        if ticket.is_some() {
+            body.append_pair("ticket", ticket.unwrap().as_str());
+        }
+
+        if claim_token.is_some() {
+            body.append_pair("claim_token", claim_token.unwrap().as_str());
+        }
+
+        if claim_token_format.is_some() {
+            body.append_pair("claim_token_format", claim_token_format.map(|b| b.to_string()).unwrap().as_str());
+        }
+
+        if rpt.is_some() {
+            body.append_pair("rpt", rpt.unwrap().as_str());
+        }
+
+        if permission.is_some() {
+            permission.unwrap().iter().for_each(|perm| {
+                body.append_pair("permission", perm.as_str());
+            });
+        }
+
+        if audience.is_some() {
+            body.append_pair("audience", audience.unwrap().as_str());
+        }
+
+        if response_include_resource_name.is_some() {
+            body.append_pair(
+                "response_include_resource_name",
+                response_include_resource_name.map(|b| if b { "true" } else { "false" }).unwrap()
+            );
+        }
+        if response_permissions_limit.is_some() {
+            body.append_pair(
+                "response_permissions_limit",
+                format!("{:}", response_permissions_limit.unwrap()).as_str()
+            );
+        }
+
+        if submit_request.is_some() {
+            body.append_pair(
+                "submit_request",
+                format!("{:}", submit_request.unwrap()).as_str()
+            );
+        }
+
+        let body = body.finish();
+
+        let json = self
+            .http_client
+            .post(self.provider.token_uri().clone())
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(AUTHORIZATION, format!("Bearer {:}", token).as_str())
+            .body(body)
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let new_token: Bearer = serde_json::from_value(json)?;
+            Ok(new_token)
+        }
     }
 }
 
