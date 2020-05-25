@@ -20,7 +20,7 @@ use std::marker::PhantomData;
 use url::{form_urlencoded::Serializer, Url};
 use serde::{Deserialize, Serialize};
 use crate::client::Uma2ClaimTokenFormat::OAuthJwt;
-use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired, NoResourceSetEndpoint, ResourceSetEndpointMalformed};
+use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired, NoResourceSetEndpoint, ResourceSetEndpointMalformed, NoPermissionsEndpoint};
 
 /// OAuth 2.0 client.
 #[derive(Debug)]
@@ -79,6 +79,14 @@ pub struct Uma2Resource {
     owner: Option<String>,
     #[serde(rename = "ownerManagedAccess")]
     owner_managed_access: Option<bool>
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Uma2PermissionTicket<T>
+where T: Serialize + core::fmt::Debug + Clone + PartialEq + Eq {
+    resource_id: String,
+    resource_scopes: Option<Vec<String>>,
+    claims: Option<T>
 }
 
 // Common pattern in the Client::decode function when dealing with mismatched keys
@@ -982,6 +990,65 @@ where
         } else {
             let resources: Vec<Uma2Resource> = serde_json::from_value(json)?;
             Ok(resources)
+        }
+    }
+
+    ///
+    /// Create a permission ticket.
+    /// A permission ticket is a special security token type representing a permission request.
+    /// Per the UMA specification, a permission ticket is:
+    /// A correlation handle that is conveyed from an authorization server to a resource server,
+    /// from a resource server to a client, and ultimately from a client back to an authorization
+    /// server, to enable the authorization server to assess the correct policies to apply to a
+    /// request for authorization data.
+    ///
+    /// # Arguments
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `resource_id` The resource's Id for which the ticket needs to be created for
+    /// * `resource_scopes` A list of scopes that should be attached to the ticket
+    /// * `claims` A set of claims that can be added for the authentication server to check whether such
+    ///     a ticket should be allowed to be created
+    pub async fn create_uma2_permission_ticket<T>(
+        &self,
+        pat_token: String,
+        resource_id: String,
+        resource_scopes: Option<Vec<String>>,
+        claims: Option<T>
+    ) -> Result<(), ClientError>
+    where T: Serialize + core::fmt::Debug + Clone + PartialEq + Eq {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if !self.provider.permission_uri().is_none() {
+            return Err(ClientError::Uma2(NoPermissionsEndpoint));
+        }
+        let url = self.provider.permission_uri().unwrap().clone();
+
+        let ticket = Uma2PermissionTicket {
+            resource_id,
+            resource_scopes,
+            claims
+        };
+
+        let json = self
+            .http_client
+            .post(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .json(&ticket)
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            // TODO need to inspect the return of this to return something proper
+            Ok(())
         }
     }
 }

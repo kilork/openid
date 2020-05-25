@@ -112,6 +112,7 @@ pub enum Uma2Error {
     NoUma2Discovered,
     AudienceFieldRequired,
     NoResourceSetEndpoint,
+    NoPermissionsEndpoint,
     ResourceSetEndpointMalformed
 }
 
@@ -141,6 +142,7 @@ impl fmt::Display for Uma2Error {
             Uma2Error::NoUma2Discovered => write!(f, "No UMA2 discovered"),
             Uma2Error::AudienceFieldRequired => write!(f, "Audience field required"),
             Uma2Error::NoResourceSetEndpoint => write!(f, "No resource_set endpoint discovered"),
+            Uma2Error::NoPermissionsEndpoint => write!(f, "No permissions endpoint"),
             Uma2Error::ResourceSetEndpointMalformed => write!(f, "resource_set endpoint is malformed")
         }
     }
