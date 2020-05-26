@@ -36,6 +36,9 @@ pub trait Provider {
     /// UMA-compliant Permission Endpoint which resource servers can use to manage permission
     /// tickets. This endpoint provides operations create, read, update, and delete permission tickets
     fn permission_uri(&self) -> Option<&Url>;
+
+    /// API from where permissions can be set to resources by resource servers on behalf of their users.
+    fn uma_policy_uri(&self) -> Option<&Url>;
 }
 
 /// Google OAuth 2.0 providers.
@@ -84,6 +87,7 @@ pub mod google {
         fn uma2_discovered(&self) -> bool { false }
         fn resource_registration_uri(&self) -> Option<&Url> { None }
         fn permission_uri(&self) -> Option<&Url> { None }
+        fn uma_policy_uri(&self) -> Option<&Url> { None }
     }
 
     /// Google OAuth 2.0 provider for installed applications.
@@ -102,6 +106,7 @@ pub mod google {
         fn uma2_discovered(&self) -> bool { false }
         fn resource_registration_uri(&self) -> Option<&Url> { None }
         fn permission_uri(&self) -> Option<&Url> { None }
+        fn uma_policy_uri(&self) -> Option<&Url> { None }
     }
 }
 
@@ -129,6 +134,7 @@ impl Provider for GitHub {
     fn uma2_discovered(&self) -> bool { false }
     fn resource_registration_uri(&self) -> Option<&Url> { None }
     fn permission_uri(&self) -> Option<&Url> { None }
+    fn uma_policy_uri(&self) -> Option<&Url> { None }
 }
 
 /// Imgur OAuth 2.0 provider.
@@ -146,6 +152,7 @@ impl Provider for Imgur {
     fn uma2_discovered(&self) -> bool { false }
     fn resource_registration_uri(&self) -> Option<&Url> { None }
     fn permission_uri(&self) -> Option<&Url> { None }
+    fn uma_policy_uri(&self) -> Option<&Url> { None }
 }
 
 #[test]

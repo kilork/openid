@@ -26,6 +26,11 @@ impl Provider for Discovered {
     fn permission_uri(&self) -> Option<&Url> {
         self.1.as_ref().and_then(|i| i.permission_endpoint.as_ref())
     }
+
+
+    fn uma_policy_uri(&self) -> Option<&Url> {
+        self.1.as_ref().and_then(|i| i.policy_endpoint.as_ref())
+    }
 }
 
 pub async fn discover(client: &Client, mut issuer: Url) -> Result<(Config, Option<Config>), Error> {

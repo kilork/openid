@@ -334,6 +334,7 @@ pub mod provider;
 mod standard_claims;
 mod token;
 mod userinfo;
+pub mod uma2;
 
 pub use ::biscuit::jws::Compact as Jws;
 pub use ::biscuit::{Compact, CompactJson, Empty, SingleOrMultiple};
