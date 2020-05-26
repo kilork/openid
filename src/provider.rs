@@ -26,6 +26,7 @@ pub trait Provider {
     }
 }
 
+#[cfg(feature = "uma2")]
 pub trait Uma2Provider {
     /// Whether UMA2 capabilities have been discovered
     fn uma2_discovered(&self) -> bool;

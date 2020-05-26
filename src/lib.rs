@@ -334,6 +334,8 @@ pub mod provider;
 mod standard_claims;
 mod token;
 mod userinfo;
+
+#[cfg(feature = "uma2")]
 pub mod uma2;
 
 pub use ::biscuit::jws::Compact as Jws;

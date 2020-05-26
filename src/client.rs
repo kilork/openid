@@ -61,9 +61,15 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
         let config = discovered::discover(&http_client, &issuer).await?;
+        #[cfg(feature = "uma2")]
         let uma2_config = discovered::discover_uma2(&http_client, &issuer).await.ok();
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
+
+        #[cfg(feature = "uma2")]
         let provider = Discovered(config, uma2_config);
+        #[cfg(not(feature = "uma2"))]
+        let provider = Discovered(config);
+
         Ok(Self::new(
             provider,
             id,
@@ -555,10 +561,6 @@ mod tests {
         fn token_uri(&self) -> &Url {
             &self.token_uri
         }
-        fn uma2_discovered(&self) -> bool { false }
-        fn resource_registration_uri(&self) -> Option<&Url> { None }
-        fn permission_uri(&self) -> Option<&Url> { None }
-        fn uma_policy_uri(&self) -> Option<&Url> { None }
     }
     impl Test {
         fn new() -> Self {

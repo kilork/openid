@@ -3,9 +3,13 @@ use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use reqwest::Client;
 use url::Url;
+#[cfg(feature = "uma2")]
 use crate::provider::Uma2Provider;
 
+#[cfg(feature = "uma2")]
 pub struct Discovered(pub Config, pub Option<Config>);
+#[cfg(not(feature = "uma2"))]
+pub struct Discovered(pub Config);
 
 impl Provider for Discovered {
     fn auth_uri(&self) -> &Url {
@@ -17,6 +21,7 @@ impl Provider for Discovered {
     }
 }
 
+#[cfg(feature = "uma2")]
 impl Uma2Provider for Discovered {
     fn uma2_discovered(&self) -> bool {
         self.1.is_some()
@@ -46,6 +51,7 @@ pub async fn discover(client: &Client, issuer: &Url) -> Result<Config, Error> {
     resp.json().await.map_err(Error::from)
 }
 
+#[cfg(feature = "uma2")]
 pub async fn discover_uma2(client: &Client, issuer: &Url) -> Result<Config, Error> {
     let mut issuer = issuer.clone();
     issuer
