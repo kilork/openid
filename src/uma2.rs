@@ -788,4 +788,75 @@ impl<P, C> Client<P, C>
         }
     }
 
+    /// Search for UMA2 resource associated permissions
+    ///
+    /// # Arguments
+    /// * `token`   This API is protected by a bearer token that must represent a consent granted by
+    ///     the user to the resource server to manage permissions on his behalf. The bearer token
+    ///     can be a regular access token obtained from the token endpoint using:
+    ///         -  Resource Owner Password Credentials Grant Type
+    ///         - Token Exchange, in order to exchange an access token granted to some client
+    ///            (public client) for a token where audience is the resource server
+    /// * `resource` Search by resource id
+    /// * `name` Search by name
+    /// * `scope` Search by scope
+    /// * `offset` Skip n amounts of permissions.
+    /// * `count` Max amount of permissions to return. Should be used especially with large return sets
+    pub async fn search_for_uma2_resource_permission(
+        &self,
+        token: String,
+        resource: Option<String>,
+        name: Option<String>,
+        scope: Option<String>,
+        offset: Option<u32>,
+        count: Option<u32>
+    ) -> Result<Vec<Uma2PermissionAssociation>, ClientError> {
+
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        if self.provider.uma_policy_uri().is_none() {
+            return Err(ClientError::Uma2(NoPolicyAssociationEndpoint));
+        }
+
+        let mut url = self.provider.uma_policy_uri().unwrap().clone();
+        {
+            let mut query = url.query_pairs_mut();
+            if resource.is_some() {
+                query.append_pair("resource", resource.unwrap().as_str());
+            }
+            if name.is_some() {
+                query.append_pair("name", name.unwrap().as_str());
+            }
+            if scope.is_some() {
+                query.append_pair("scope", scope.unwrap().as_str());
+            }
+            if offset.is_some() {
+                query.append_pair("first", format!("{}", offset.unwrap()).as_str());
+            }
+            if count.is_some() {
+                query.append_pair("max", format!("{}", count.unwrap()).as_str());
+            }
+        }
+
+        let json = self
+            .http_client
+            .get(url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", token))
+            .send()
+            .await?
+            .json::<Value>()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            let resource: Vec<Uma2PermissionAssociation> = serde_json::from_value(json)?;
+            Ok(resource)
+        }
+    }
 }
