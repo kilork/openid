@@ -8,6 +8,7 @@ use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 use core::fmt;
 use serde::export::Formatter;
+use crate::provider::Uma2Provider;
 
 /// UMA2 claim token format
 /// Either is an access token (urn:ietf:params:oauth:token-type:jwt) or an OIDC ID token
@@ -89,7 +90,7 @@ pub struct Uma2PermissionTicket<T>
 
 impl<P, C> Client<P, C>
     where
-        P: Provider,
+        P: Provider + Uma2Provider,
         C: CompactJson + Claims,
 {
     ///

@@ -24,7 +24,9 @@ pub trait Provider {
     fn credentials_in_body(&self) -> bool {
         false
     }
+}
 
+pub trait Uma2Provider {
     /// Whether UMA2 capabilities have been discovered
     fn uma2_discovered(&self) -> bool;
 
@@ -84,10 +86,6 @@ pub mod google {
         fn token_uri(&self) -> &Url {
             &TOKEN_URI
         }
-        fn uma2_discovered(&self) -> bool { false }
-        fn resource_registration_uri(&self) -> Option<&Url> { None }
-        fn permission_uri(&self) -> Option<&Url> { None }
-        fn uma_policy_uri(&self) -> Option<&Url> { None }
     }
 
     /// Google OAuth 2.0 provider for installed applications.
@@ -103,10 +101,6 @@ pub mod google {
         fn token_uri(&self) -> &Url {
             &TOKEN_URI
         }
-        fn uma2_discovered(&self) -> bool { false }
-        fn resource_registration_uri(&self) -> Option<&Url> { None }
-        fn permission_uri(&self) -> Option<&Url> { None }
-        fn uma_policy_uri(&self) -> Option<&Url> { None }
     }
 }
 
@@ -131,10 +125,6 @@ impl Provider for GitHub {
     fn token_uri(&self) -> &Url {
         &GITHUB_TOKEN_URI
     }
-    fn uma2_discovered(&self) -> bool { false }
-    fn resource_registration_uri(&self) -> Option<&Url> { None }
-    fn permission_uri(&self) -> Option<&Url> { None }
-    fn uma_policy_uri(&self) -> Option<&Url> { None }
 }
 
 /// Imgur OAuth 2.0 provider.
@@ -149,10 +139,6 @@ impl Provider for Imgur {
     fn token_uri(&self) -> &Url {
         &IMGUR_TOKEN_URI
     }
-    fn uma2_discovered(&self) -> bool { false }
-    fn resource_registration_uri(&self) -> Option<&Url> { None }
-    fn permission_uri(&self) -> Option<&Url> { None }
-    fn uma_policy_uri(&self) -> Option<&Url> { None }
 }
 
 #[test]

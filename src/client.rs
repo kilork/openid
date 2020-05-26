@@ -60,9 +60,10 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         issuer: Url,
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
-        let config = discovered::discover(&http_client, issuer).await?;
-        let jwks = discovered::jwks(&http_client, config.0.jwks_uri.clone()).await?;
-        let provider = Discovered(config.0, config.1);
+        let config = discovered::discover(&http_client, &issuer).await?;
+        let uma2_config = discovered::discover_uma2(&http_client, &issuer).await.ok();
+        let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
+        let provider = Discovered(config, uma2_config);
         Ok(Self::new(
             provider,
             id,
