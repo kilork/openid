@@ -356,7 +356,7 @@ pub use standard_claims::StandardClaims;
 pub use token::Token;
 pub use userinfo::Userinfo;
 
-/// Reimport `biscuit` depdendency.
+/// Reimport `biscuit` dependency.
 pub mod biscuit {
     pub use biscuit::*;
 }

@@ -104,24 +104,9 @@ pub enum ClientError {
     /// OAuth 2.0 error.
     OAuth2(OAuth2Error),
 
+    /// UMA2 error.
+    #[cfg(feature = "uma2")]
     Uma2(Uma2Error)
-}
-
-#[derive(Debug)]
-pub enum Uma2Error {
-    NoUma2Discovered,
-    AudienceFieldRequired,
-    NoResourceSetEndpoint,
-    NoPermissionsEndpoint,
-    NoPolicyAssociationEndpoint,
-    ResourceSetEndpointMalformed,
-    PolicyAssociationEndpointMalformed
-}
-
-impl error::Error for Uma2Error {
-    fn description(&self) -> &str {
-        "UMA2 API error"
-    }
 }
 
 impl fmt::Display for ClientError {
@@ -133,24 +118,9 @@ impl fmt::Display for ClientError {
             ClientError::Json(ref err) => write!(f, "{}", err),
             // ClientError::Parse(ref err) => write!(f, "{}", err),
             ClientError::OAuth2(ref err) => write!(f, "{}", err),
+            #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => write!(f, "{}", err)
         }
-    }
-}
-
-impl fmt::Display for Uma2Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}",
-            match *self {
-                Uma2Error::NoUma2Discovered => "No UMA2 discovered",
-                Uma2Error::AudienceFieldRequired => "Audience field required",
-                Uma2Error::NoResourceSetEndpoint => "No resource_set endpoint discovered",
-                Uma2Error::NoPermissionsEndpoint => "No permissions endpoint discovered",
-                Uma2Error::NoPolicyAssociationEndpoint => "No permissions policy association endpoint discovered",
-                Uma2Error::ResourceSetEndpointMalformed => "resource_set endpoint is malformed",
-                Uma2Error::PolicyAssociationEndpointMalformed => "policy_endpoint is malformed"
-            }
-        )
     }
 }
 
@@ -163,6 +133,7 @@ impl std::error::Error for ClientError {
             ClientError::Json(ref err) => Some(err),
             // ClientError::Parse(ref err) => Some(err),
             ClientError::OAuth2(ref err) => Some(err),
+            #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => Some(err)
         }
     }
@@ -191,6 +162,7 @@ pub use reqwest::Error as Http;
 pub use serde_json::Error as Json;
 
 use failure::Fail;
+use crate::uma2::Uma2Error;
 
 #[derive(Debug, Fail)]
 pub enum Error {

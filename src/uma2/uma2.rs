@@ -3,66 +3,14 @@ use biscuit::CompactJson;
 use url::{form_urlencoded::Serializer};
 use serde::{Deserialize, Serialize};
 use crate::error::ClientError;
-use crate::error::Uma2Error::{NoUma2Discovered, AudienceFieldRequired, NoResourceSetEndpoint, ResourceSetEndpointMalformed, NoPermissionsEndpoint, NoPolicyAssociationEndpoint, PolicyAssociationEndpointMalformed};
 use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
-use core::fmt;
-use serde::export::Formatter;
-use crate::provider::Uma2Provider;
-
-/// UMA2 claim token format
-/// Either is an access token (urn:ietf:params:oauth:token-type:jwt) or an OIDC ID token
-pub enum Uma2ClaimTokenFormat {
-    OAuthJwt, // urn:ietf:params:oauth:token-type:jwt
-    OidcIdToken // https://openid.net/specs/openid-connect-core-1_0.html#IDToken
-}
-
-impl fmt::Display for Uma2ClaimTokenFormat {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}",
-               match *self {
-                   Uma2ClaimTokenFormat::OAuthJwt => "urn:ietf:params:oauth:token-type:jwt",
-                   Uma2ClaimTokenFormat::OidcIdToken => "https://openid.net/specs/openid-connect-core-1_0.html#IDToken",
-               }
-        )
-    }
-}
+use crate::uma2::*;
+use crate::uma2::error::Uma2Error::*;
 
 pub enum Uma2AuthenticationMethod {
     Bearer,
     Basic
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum Uma2PermissionLogic {
-    Positive,
-    Negative
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum Uma2PermissionDecisionStrategy {
-    Unanimous,
-    Affirmative,
-    Consensus
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct Uma2PermissionAssociation {
-    pub id: Option<String>,
-    pub name: String,
-    pub description: String,
-    pub scopes: Vec<String>,
-    pub roles: Option<Vec<String>>,
-    pub groups: Option<Vec<String>>,
-    pub clients: Option<Vec<String>>,
-    pub owner: Option<String>,
-    #[serde(rename = "type")]
-    pub permission_type: Option<String>,
-    pub logic: Option<Uma2PermissionLogic>,
-    #[serde(rename = "decisionStrategy")]
-    pub decision_strategy: Option<Uma2PermissionDecisionStrategy>
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]

@@ -4,7 +4,7 @@ use biscuit::Empty;
 use reqwest::Client;
 use url::Url;
 #[cfg(feature = "uma2")]
-use crate::provider::Uma2Provider;
+use crate::uma2::Uma2Provider;
 
 #[cfg(feature = "uma2")]
 pub struct Discovered(pub Config, pub Option<Config>);
