@@ -28,7 +28,6 @@ impl<P, C> Client<P, C>
         P: Provider + Uma2Provider,
         C: CompactJson + Claims,
 {
-
     ///
     /// Create a UMA2 managed resource
     ///

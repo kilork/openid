@@ -44,7 +44,6 @@ impl<P, C> Client<P, C>
         P: Provider + Uma2Provider,
         C: CompactJson + Claims,
 {
-
     /// Used when permissions can be set to resources by resource servers on behalf of their users
     ///
     /// # Arguments
@@ -346,4 +345,3 @@ impl<P, C> Client<P, C>
         }
     }
 }
-

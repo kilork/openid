@@ -1,4 +1,4 @@
-mod uma2;
+mod rpt;
 mod claim_token_format;
 mod permission_association;
 mod provider;
