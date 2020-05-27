@@ -162,6 +162,8 @@ pub use reqwest::Error as Http;
 pub use serde_json::Error as Json;
 
 use failure::Fail;
+
+#[cfg(feature = "uma2")]
 use crate::uma2::Uma2Error;
 
 #[derive(Debug, Fail)]

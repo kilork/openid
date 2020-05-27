@@ -21,7 +21,7 @@ repository = 'https://github.com/kilork/openid'
 
 [features]
 uma2 = []
-default = ["uma2"]
+default = []
 
 [dependencies]
 lazy_static = '1.4'
