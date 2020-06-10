@@ -91,6 +91,12 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         &self.provider.0
     }
 
+    #[cfg(feature = "uma2")]
+    /// A reference to the UMA2 config document of the provider obtained via discovery
+    pub fn uma2_config(&self) -> &Option<Config> {
+        &self.provider.1
+    }
+
     /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use
     /// them as needed. Keep the Options struct around for authentication, or at least the nonce
     /// and max_age parameter - we need to verify they stay the same and validate if you used them.
