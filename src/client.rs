@@ -504,6 +504,25 @@ where
         Ok(token)
     }
 
+    /// Requests an access token using the Client Credentials Grant flow
+    ///
+    /// See [RFC 6749, section 4.4](https://tools.ietf.org/html/rfc6749#section-4.4)
+    pub async fn request_token_using_client_credentials(&self) -> Result<Bearer, ClientError> {
+        // Ensure the non thread-safe `Serializer` is not kept across
+        // an `await` boundary by localizing it to this inner scope.
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "client_credentials");
+            body.append_pair("client_id", &self.client_id);
+            body.append_pair("client_secret", &self.client_secret);
+            body.finish()
+        };
+
+        let json = self.post_token(body).await?;
+        let token: Bearer = serde_json::from_value(json)?;
+        Ok(token)
+    }
+
     /// Refreshes an access token.
     ///
     /// See [RFC 6749, section 6](http://tools.ietf.org/html/rfc6749#section-6).
