@@ -16,7 +16,8 @@ pub struct Uma2Resource {
     pub resource_type: Option<String>,
     pub icon_uri: Option<String>,
     pub resource_scopes: Option<Vec<String>>,
-    pub description: Option<String>,
+    #[serde(rename = "displayName")]
+    pub display_name: Option<String>,
     pub owner: Option<String>,
     #[serde(rename = "ownerManagedAccess")]
     pub owner_managed_access: Option<bool>
@@ -49,7 +50,7 @@ impl<P, C> Client<P, C>
         resource_type: Option<String>,
         icon_uri: Option<String>,
         resource_scopes: Option<Vec<String>>,
-        description: Option<String>,
+        display_name: Option<String>,
         owner: Option<String>,
         owner_managed_access: Option<bool>
     ) -> Result<Uma2Resource, ClientError> {
@@ -70,7 +71,7 @@ impl<P, C> Client<P, C>
             resource_type,
             icon_uri,
             resource_scopes,
-            description,
+            display_name,
             owner,
             owner_managed_access
         };
@@ -117,7 +118,7 @@ impl<P, C> Client<P, C>
         resource_type: Option<String>,
         icon_uri: Option<String>,
         resource_scopes: Option<Vec<String>>,
-        description: Option<String>,
+        display_name: Option<String>,
         owner: Option<String>,
         owner_managed_access: Option<bool>
     ) -> Result<Uma2Resource, ClientError> {
@@ -137,7 +138,7 @@ impl<P, C> Client<P, C>
             resource_type,
             icon_uri,
             resource_scopes,
-            description,
+            display_name,
             owner,
             owner_managed_access
         };
