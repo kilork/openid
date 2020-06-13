@@ -125,7 +125,7 @@ impl<P, C> Client<P, C>
             .json::<Value>()
             .await?;
 
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
         if let Ok(error) = error {
             Err(ClientError::from(error))
@@ -216,7 +216,7 @@ impl<P, C> Client<P, C>
             .json::<Value>()
             .await?;
 
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
         if let Ok(error) = error {
             Err(ClientError::from(error))
