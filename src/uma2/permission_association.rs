@@ -4,7 +4,7 @@ use crate::uma2::Uma2Provider;
 use biscuit::CompactJson;
 use crate::error::ClientError;
 use crate::uma2::error::Uma2Error::*;
-use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -85,7 +85,7 @@ impl<P, C> Client<P, C>
         owner: Option<String>,
         logic: Option<Uma2PermissionLogic>,
         decision_strategy: Option<Uma2PermissionDecisionStrategy>
-    ) -> Result<(), ClientError> {
+    ) -> Result<Uma2PermissionAssociation, ClientError> {
 
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
@@ -118,6 +118,7 @@ impl<P, C> Client<P, C>
             .post(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", token))
+            .header(ACCEPT, "application/json")
             .json(&permission)
             .send()
             .await?
@@ -129,8 +130,8 @@ impl<P, C> Client<P, C>
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            // TODO need to inspect the return of this to return something proper
-            Ok(())
+            let association: Uma2PermissionAssociation = serde_json::from_value(json)?;
+            Ok(association)
         }
     }
 
@@ -175,7 +176,7 @@ impl<P, C> Client<P, C>
         owner: Option<String>,
         logic: Option<Uma2PermissionLogic>,
         decision_strategy: Option<Uma2PermissionDecisionStrategy>
-    ) -> Result<(), ClientError> {
+    ) -> Result<Uma2PermissionAssociation, ClientError> {
 
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
@@ -220,8 +221,8 @@ impl<P, C> Client<P, C>
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            // TODO need to inspect the return of this to return something proper
-            Ok(())
+            let association: Uma2PermissionAssociation = serde_json::from_value(json)?;
+            Ok(association)
         }
     }
 
@@ -268,7 +269,6 @@ impl<P, C> Client<P, C>
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            // TODO need to inspect the return of this to return something proper
             Ok(())
         }
     }
