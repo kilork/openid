@@ -4,7 +4,7 @@ use crate::uma2::Uma2Provider;
 use biscuit::CompactJson;
 use crate::error::ClientError;
 use crate::uma2::error::Uma2Error::*;
-use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -15,14 +15,25 @@ pub struct Uma2Resource {
     #[serde(rename = "type")]
     pub resource_type: Option<String>,
     pub icon_uri: Option<String>,
-    pub resource_scopes: Option<Vec<String>>,
+    pub resource_scopes: Option<Vec<Uma2ResourceScope>>,
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,
-    pub owner: Option<String>,
+    pub owner: Option<Uma2Owner>,
     #[serde(rename = "ownerManagedAccess")]
     pub owner_managed_access: Option<bool>
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Uma2ResourceScope {
+    pub id: Option<String>,
+    pub name: Option<String>
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Uma2Owner {
+    pub id: Option<String>,
+    pub name: Option<String>
+}
 
 impl<P, C> Client<P, C>
     where
@@ -51,7 +62,7 @@ impl<P, C> Client<P, C>
         icon_uri: Option<String>,
         resource_scopes: Option<Vec<String>>,
         display_name: Option<String>,
-        owner: Option<String>,
+        owner: Option<Uma2Owner>,
         owner_managed_access: Option<bool>
     ) -> Result<Uma2Resource, ClientError> {
 
@@ -62,6 +73,12 @@ impl<P, C> Client<P, C>
         if self.provider.resource_registration_uri().is_none() {
             return Err(ClientError::Uma2(NoResourceSetEndpoint));
         }
+
+        let resource_scopes = resource_scopes.map(|names|
+            names.iter()
+                .map(|name| Uma2ResourceScope { name: Some(name.clone()), id: None})
+                .collect()
+        );
 
         let url = self.provider.resource_registration_uri().unwrap().clone();
 
@@ -81,6 +98,7 @@ impl<P, C> Client<P, C>
             .post(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .header(ACCEPT, "application/json")
             .json(&body)
             .send()
             .await?
@@ -119,7 +137,7 @@ impl<P, C> Client<P, C>
         icon_uri: Option<String>,
         resource_scopes: Option<Vec<String>>,
         display_name: Option<String>,
-        owner: Option<String>,
+        owner: Option<Uma2Owner>,
         owner_managed_access: Option<bool>
     ) -> Result<Uma2Resource, ClientError> {
         if !self.provider.uma2_discovered() {
@@ -129,6 +147,12 @@ impl<P, C> Client<P, C>
         if self.provider.resource_registration_uri().is_none() {
             return Err(ClientError::Uma2(NoResourceSetEndpoint));
         }
+
+        let resource_scopes = resource_scopes.map(|names|
+            names.iter()
+                .map(|name| Uma2ResourceScope { name: Some(name.clone()), id: None})
+                .collect()
+        );
 
         let url = self.provider.resource_registration_uri().unwrap().clone();
 
@@ -148,6 +172,7 @@ impl<P, C> Client<P, C>
             .put(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .header(ACCEPT, "application/json")
             .json(&body)
             .send()
             .await?
