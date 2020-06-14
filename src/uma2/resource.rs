@@ -286,7 +286,7 @@ impl<P, C> Client<P, C>
         owner: Option<String>,
         resource_type: Option<String>,
         scope: Option<String>
-    ) -> Result<Vec<Uma2Resource>, ClientError> {
+    ) -> Result<Vec<String>, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -320,6 +320,7 @@ impl<P, C> Client<P, C>
             .get(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .header(ACCEPT, "application/json")
             .send()
             .await?
             .json::<Value>()
@@ -330,7 +331,7 @@ impl<P, C> Client<P, C>
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            let resources: Vec<Uma2Resource> = serde_json::from_value(json)?;
+            let resources: Vec<String> = serde_json::from_value(json)?;
             Ok(resources)
         }
     }
