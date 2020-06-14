@@ -6,9 +6,6 @@ use url::Url;
 #[cfg(feature = "uma2")]
 use crate::uma2::Uma2Provider;
 
-#[cfg(feature = "uma2")]
-pub struct Discovered(pub Config, pub Option<Config>);
-#[cfg(not(feature = "uma2"))]
 pub struct Discovered(pub Config);
 
 impl Provider for Discovered {
@@ -24,19 +21,19 @@ impl Provider for Discovered {
 #[cfg(feature = "uma2")]
 impl Uma2Provider for Discovered {
     fn uma2_discovered(&self) -> bool {
-        self.1.is_some()
+        self.0.resource_registration_endpoint.is_some()
     }
 
     fn resource_registration_uri(&self) -> Option<&Url> {
-        self.1.as_ref().and_then(|i| i.resource_registration_endpoint.as_ref())
+        self.0.resource_registration_endpoint.as_ref()
     }
 
     fn permission_uri(&self) -> Option<&Url> {
-        self.1.as_ref().and_then(|i| i.permission_endpoint.as_ref())
+        self.0.permission_endpoint.as_ref()
     }
 
     fn uma_policy_uri(&self) -> Option<&Url> {
-        self.1.as_ref().and_then(|i| i.policy_endpoint.as_ref())
+        self.0.policy_endpoint.as_ref()
     }
 }
 
