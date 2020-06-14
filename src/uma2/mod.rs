@@ -18,3 +18,4 @@ pub use permission_ticket::Uma2PermissionTicket;
 pub use resource::Uma2Resource;
 pub use resource::Uma2ResourceScope;
 pub use resource::Uma2Owner;
+pub use rpt::Uma2AuthenticationMethod;
