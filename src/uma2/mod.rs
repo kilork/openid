@@ -14,7 +14,7 @@ pub use permission_association::{
 };
 pub use provider::Uma2Provider;
 pub use error::Uma2Error;
-pub use permission_ticket::Uma2PermissionTicket;
+pub use permission_ticket::{Uma2PermissionTicketRequest, Uma2PermissionTicketResponse};
 pub use resource::Uma2Resource;
 pub use resource::Uma2ResourceScope;
 pub use resource::Uma2Owner;

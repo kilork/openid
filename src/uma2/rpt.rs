@@ -6,7 +6,7 @@ use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
 use crate::uma2::*;
 use crate::uma2::error::Uma2Error::*;
-use crate::uma2::permission_ticket::Uma2PermissionTicket;
+use crate::uma2::permission_ticket::Uma2PermissionTicketRequest;
 
 pub enum Uma2AuthenticationMethod {
     Bearer,
@@ -161,8 +161,8 @@ impl<P, C> Client<P, C>
     pub async fn create_uma2_permission_ticket(
         &self,
         pat_token: String,
-        requests: Vec<Uma2PermissionTicket>
-    ) -> Result<(), ClientError> {
+        requests: Vec<Uma2PermissionTicketRequest>
+    ) -> Result<Uma2PermissionTicketResponse, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -183,13 +183,13 @@ impl<P, C> Client<P, C>
             .json::<Value>()
             .await?;
 
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            // TODO need to inspect the return of this to return something proper
-            Ok(())
+            let response = serde_json::from_value(json)?;
+            Ok(response)
         }
     }
 }
