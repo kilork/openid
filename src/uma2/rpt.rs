@@ -1,7 +1,6 @@
 use crate::{Client, Provider, Claims, OAuth2Error, Bearer};
 use biscuit::CompactJson;
 use url::{form_urlencoded::Serializer};
-use serde::{Serialize};
 use crate::error::ClientError;
 use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
 use serde_json::Value;
@@ -157,18 +156,13 @@ impl<P, C> Client<P, C>
     ///
     /// # Arguments
     /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
-    /// * `resource_id` The resource's Id for which the ticket needs to be created for
-    /// * `resource_scopes` A list of scopes that should be attached to the ticket
-    /// * `claims` A set of claims that can be added for the authentication server to check whether such
-    ///     a ticket should be allowed to be created
-    pub async fn create_uma2_permission_ticket<T>(
+    /// * `requests` A list of resources, optionally with their scopes, optionally with extra claims to be
+    ///     processed.
+    pub async fn create_uma2_permission_ticket(
         &self,
         pat_token: String,
-        resource_id: String,
-        resource_scopes: Option<Vec<String>>,
-        claims: Option<T>
-    ) -> Result<(), ClientError>
-        where T: Serialize + core::fmt::Debug + Clone + PartialEq + Eq {
+        requests: Vec<Uma2PermissionTicket>
+    ) -> Result<(), ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -178,18 +172,12 @@ impl<P, C> Client<P, C>
         }
         let url = self.provider.permission_uri().unwrap().clone();
 
-        let ticket = Uma2PermissionTicket {
-            resource_id,
-            resource_scopes,
-            claims
-        };
-
         let json = self
             .http_client
             .post(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
-            .json(&ticket)
+            .json(&requests)
             .send()
             .await?
             .json::<Value>()
