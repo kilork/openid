@@ -61,21 +61,11 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
         #[cfg(not(feature = "uma2"))]
-            let config = discovered::discover(&http_client, &issuer).await?;
+        let config = discovered::discover(&http_client, &issuer).await?;
         #[cfg(feature = "uma2")]
-        let mut config = discovered::discover(&http_client, &issuer).await?;
-        #[cfg(feature = "uma2")]
-        let uma2_config = discovered::discover_uma2(&http_client, &issuer).await.ok();
+        let config = discovered::discover_uma2(&http_client, &issuer).await?;
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
 
-        #[cfg(feature = "uma2")]
-        if uma2_config.is_some() {
-            let uma2_config = uma2_config.unwrap();
-            config.resource_registration_endpoint = uma2_config.resource_registration_endpoint.clone();
-            config.permission_endpoint = uma2_config.permission_endpoint.clone();
-            config.policy_endpoint = uma2_config.policy_endpoint.clone();
-            config.introspection_endpoint = uma2_config.introspection_endpoint.clone();
-        }
         let provider = Discovered(config);
 
         Ok(Self::new(
