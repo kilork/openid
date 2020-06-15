@@ -37,6 +37,7 @@ impl Uma2Provider for Discovered {
     }
 }
 
+#[cfg(not(feature = "uma2"))]
 pub async fn discover(client: &Client, issuer: &Url) -> Result<Config, Error> {
     let mut issuer= issuer.clone();
     issuer
