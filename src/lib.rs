@@ -325,6 +325,7 @@ mod claims;
 mod client;
 mod config;
 mod custom_claims;
+mod configurable;
 mod discovered;
 mod display;
 pub mod error;
@@ -355,6 +356,7 @@ pub use provider::Provider;
 pub use standard_claims::StandardClaims;
 pub use token::Token;
 pub use userinfo::Userinfo;
+pub use configurable::Configurable;
 
 /// Reimport `biscuit` dependency.
 pub mod biscuit {
@@ -363,3 +365,5 @@ pub mod biscuit {
 
 type IdToken<T> = Jws<T, Empty>;
 pub type DiscoveredClient = Client<Discovered, StandardClaims>;
+#[cfg(feature = "uma2")]
+pub type DiscoveredUma2Client = Client<uma2::DiscoveredUma2, StandardClaims>;

@@ -5,7 +5,7 @@ use crate::{
         Validation,
     },
     Bearer, Claims, Config, Discovered, IdToken, OAuth2Error, Options, Provider, StandardClaims,
-    Token, Userinfo,
+    Token, Userinfo, Configurable,
 };
 use biscuit::{
     jwa::{self, SignatureAlgorithm},
@@ -60,13 +60,10 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         issuer: Url,
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
-        #[cfg(not(feature = "uma2"))]
-        let config = discovered::discover(&http_client, &issuer).await?;
-        #[cfg(feature = "uma2")]
-        let config = discovered::discover_uma2(&http_client, &issuer).await?;
+        let config = discovered::discover(&http_client, issuer).await?;
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
 
-        let provider = Discovered(config);
+        let provider = config.into();
 
         Ok(Self::new(
             provider,
@@ -77,7 +74,10 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
             Some(jwks),
         ))
     }
-    /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
+}
+
+impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
+        /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
     pub fn redirect_url(&self) -> &str {
         self.redirect_uri
             .as_ref()
@@ -86,7 +86,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 
     /// A reference to the config document of the provider obtained via discovery
     pub fn config(&self) -> &Config {
-        &self.provider.0
+        self.provider.config()
     }
 
     /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use

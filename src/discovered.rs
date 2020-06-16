@@ -1,12 +1,10 @@
-use crate::{error::Error, Config, Provider};
+use crate::{error::Error, Config, Configurable, Provider};
 use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use reqwest::Client;
 use url::Url;
-#[cfg(feature = "uma2")]
-use crate::uma2::Uma2Provider;
 
-pub struct Discovered(pub Config);
+pub struct Discovered(Config);
 
 impl Provider for Discovered {
     fn auth_uri(&self) -> &Url {
@@ -18,44 +16,24 @@ impl Provider for Discovered {
     }
 }
 
-#[cfg(feature = "uma2")]
-impl Uma2Provider for Discovered {
-    fn uma2_discovered(&self) -> bool {
-        self.0.resource_registration_endpoint.is_some()
-    }
-
-    fn resource_registration_uri(&self) -> Option<&Url> {
-        self.0.resource_registration_endpoint.as_ref()
-    }
-
-    fn permission_uri(&self) -> Option<&Url> {
-        self.0.permission_endpoint.as_ref()
-    }
-
-    fn uma_policy_uri(&self) -> Option<&Url> {
-        self.0.policy_endpoint.as_ref()
+impl Configurable for Discovered {
+    fn config(&self) -> &Config {
+        &self.0
     }
 }
 
-#[cfg(not(feature = "uma2"))]
-pub async fn discover(client: &Client, issuer: &Url) -> Result<Config, Error> {
-    let mut issuer= issuer.clone();
+impl From<Config> for Discovered {
+    fn from(value: Config) -> Self {
+        Self(value)
+    }
+}
+
+pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
     issuer
         .path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "openid-configuration"]);
 
-    let resp = client.get(issuer).send().await?;
-    resp.json().await.map_err(Error::from)
-}
-
-#[cfg(feature = "uma2")]
-pub async fn discover_uma2(client: &Client, issuer: &Url) -> Result<Config, Error> {
-    let mut issuer = issuer.clone();
-    issuer
-        .path_segments_mut()
-        .map_err(|_| Error::CannotBeABase)?
-        .extend(&[".well-known", "uma2-configuration"]);
     let resp = client.get(issuer).send().await?;
     resp.json().await.map_err(Error::from)
 }
