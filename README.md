@@ -8,6 +8,8 @@ Dual-licensed under `MIT` or the [UNLICENSE](http://unlicense.org/).
 
 Implements [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html) and [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html).
 
+Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-authz-2.0-09.html) - User Managed Access, an extension to OIDC/OAuth2. Use feature flag `uma2` to enable this feature.
+
 This is quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. Basic idea was to solve particular task, as result most of good ideas from original crates were perverted and over-simplified.
 
 Using [reqwest](https://crates.io/crates/reqwest) for the HTTP client and [biscuit](https://crates.io/crates/biscuit) for Javascript Object Signing and Encryption (JOSE).
@@ -18,7 +20,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.3"
+openid = "0.4"
 ```
 
 ### Use case: [Actix](https://actix.rs/) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -41,7 +43,7 @@ actix-rt = '1.0'
 exitfailure = "0.5"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = "2.1"
-openid = "0.3"
+openid = "0.4"
 
 [dependencies.serde]
 version = '1.0'

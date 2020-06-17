@@ -1,6 +1,6 @@
 [package]
 name = 'openid'
-version = '0.3.1'
+version = '0.4.0'
 authors = ['Alexander Korolev <kilork@yandex.ru>']
 edition = '2018'
 categories = []
@@ -13,7 +13,8 @@ keywords = [
     'authorization',
     'oauth',
     'openid',
-    'async'
+    'async',
+    'uma2'
 ]
 license = 'Unlicense OR MIT'
 readme = 'README.md'
