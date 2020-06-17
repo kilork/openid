@@ -13,7 +13,6 @@ keywords = [
     'authorization',
     'oauth',
     'openid',
-    'async',
     'uma2'
 ]
 license = 'Unlicense OR MIT'
