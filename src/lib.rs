@@ -324,6 +324,7 @@ mod bearer;
 mod claims;
 mod client;
 mod config;
+mod configurable;
 mod custom_claims;
 mod discovered;
 mod display;
@@ -335,6 +336,9 @@ mod standard_claims;
 mod token;
 mod userinfo;
 
+#[cfg(feature = "uma2")]
+pub mod uma2;
+
 pub use ::biscuit::jws::Compact as Jws;
 pub use ::biscuit::{Compact, CompactJson, Empty, SingleOrMultiple};
 pub use address::Address;
@@ -342,6 +346,7 @@ pub use bearer::Bearer;
 pub use claims::Claims;
 pub use client::Client;
 pub use config::Config;
+pub use configurable::Configurable;
 pub use custom_claims::CustomClaims;
 pub use discovered::Discovered;
 pub use display::Display;
@@ -353,10 +358,12 @@ pub use standard_claims::StandardClaims;
 pub use token::Token;
 pub use userinfo::Userinfo;
 
-/// Reimport `biscuit` depdendency.
+/// Reimport `biscuit` dependency.
 pub mod biscuit {
     pub use biscuit::*;
 }
 
 type IdToken<T> = Jws<T, Empty>;
 pub type DiscoveredClient = Client<Discovered, StandardClaims>;
+#[cfg(feature = "uma2")]
+pub type DiscoveredUma2Client = Client<uma2::DiscoveredUma2, StandardClaims>;

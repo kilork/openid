@@ -40,14 +40,14 @@ pub mod google {
     /// See [Choosing a redirect URI][uri].
     ///
     /// [uri]: https://developers.google.com/identity/protocols/OAuth2InstalledApp#choosingredirecturi
-    pub const REDIRECT_URI_OOB: &'static str = "urn:ietf:wg:oauth:2.0:oob";
+    pub const REDIRECT_URI_OOB: &str = "urn:ietf:wg:oauth:2.0:oob";
 
     /// Signals the server to return the authorization code in the page title.
     ///
     /// See [Choosing a redirect URI][uri].
     ///
     /// [uri]: https://developers.google.com/identity/protocols/OAuth2InstalledApp#choosingredirecturi
-    pub const REDIRECT_URI_OOB_AUTO: &'static str = "urn:ietf:wg:oauth:2.0:oob:auto";
+    pub const REDIRECT_URI_OOB_AUTO: &str = "urn:ietf:wg:oauth:2.0:oob:auto";
 
     lazy_static! {
         static ref AUTH_URI: Url =

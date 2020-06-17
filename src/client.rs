@@ -4,8 +4,8 @@ use crate::{
         ClientError, Decode, Error, Expiry, Jose, Mismatch, Missing, Userinfo as ErrorUserinfo,
         Validation,
     },
-    Bearer, Claims, Config, Discovered, IdToken, OAuth2Error, Options, Provider, StandardClaims,
-    Token, Userinfo,
+    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
+    StandardClaims, Token, Userinfo,
 };
 use biscuit::{
     jwa::{self, SignatureAlgorithm},
@@ -62,7 +62,9 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         let http_client = reqwest::Client::new();
         let config = discovered::discover(&http_client, issuer).await?;
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
-        let provider = Discovered(config);
+
+        let provider = config.into();
+
         Ok(Self::new(
             provider,
             id,
@@ -72,6 +74,9 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
             Some(jwks),
         ))
     }
+}
+
+impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
     pub fn redirect_url(&self) -> &str {
         self.redirect_uri
@@ -81,7 +86,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 
     /// A reference to the config document of the provider obtained via discovery
     pub fn config(&self) -> &Config {
-        &self.provider.0
+        self.provider.config()
     }
 
     /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use
@@ -100,7 +105,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
             None => String::from("openid"),
         };
 
-        let mut url = self.auth_uri(Some(&scope), options.state.as_ref().map(String::as_str));
+        let mut url = self.auth_uri(Some(&scope), options.state.as_deref());
         {
             let mut query = url.query_pairs_mut();
             if let Some(ref nonce) = options.nonce {
@@ -187,7 +192,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         };
 
         if let Some(alg) = key.common.algorithm.as_ref() {
-            if let &jwa::Algorithm::Signature(sig) = alg {
+            if let jwa::Algorithm::Signature(sig) = *alg {
                 if header.registered.algorithm != sig {
                     return wrong_key!(sig, header.registered.algorithm);
                 }
@@ -277,7 +282,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         }
         // By spec, if there are multiple auds, we must have an azp
         if let SingleOrMultiple::Multiple(_) = claims.aud() {
-            if let None = claims.azp() {
+            if claims.azp().is_none() {
                 return Err(Validation::Missing(Missing::AuthorizedParty).into());
             }
         }
@@ -491,6 +496,25 @@ where
         Ok(token)
     }
 
+    /// Requests an access token using the Client Credentials Grant flow
+    ///
+    /// See [RFC 6749, section 4.4](https://tools.ietf.org/html/rfc6749#section-4.4)
+    pub async fn request_token_using_client_credentials(&self) -> Result<Bearer, ClientError> {
+        // Ensure the non thread-safe `Serializer` is not kept across
+        // an `await` boundary by localizing it to this inner scope.
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "client_credentials");
+            body.append_pair("client_id", &self.client_id);
+            body.append_pair("client_secret", &self.client_secret);
+            body.finish()
+        };
+
+        let json = self.post_token(body).await?;
+        let token: Bearer = serde_json::from_value(json)?;
+        Ok(token)
+    }
+
     /// Refreshes an access token.
     ///
     /// See [RFC 6749, section 6](http://tools.ietf.org/html/rfc6749#section-6).
@@ -505,8 +529,7 @@ where
             "refresh_token",
             token
                 .refresh_token
-                .as_ref()
-                .map(String::as_str)
+                .as_deref()
                 .expect("No refresh_token field"),
         );
 

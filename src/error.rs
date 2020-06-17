@@ -103,7 +103,12 @@ pub enum ClientError {
 
     /// OAuth 2.0 error.
     OAuth2(OAuth2Error),
+
+    /// UMA2 error.
+    #[cfg(feature = "uma2")]
+    Uma2(Uma2Error),
 }
+
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
@@ -113,6 +118,8 @@ impl fmt::Display for ClientError {
             ClientError::Json(ref err) => write!(f, "{}", err),
             // ClientError::Parse(ref err) => write!(f, "{}", err),
             ClientError::OAuth2(ref err) => write!(f, "{}", err),
+            #[cfg(feature = "uma2")]
+            ClientError::Uma2(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -126,6 +133,8 @@ impl std::error::Error for ClientError {
             ClientError::Json(ref err) => Some(err),
             // ClientError::Parse(ref err) => Some(err),
             ClientError::OAuth2(ref err) => Some(err),
+            #[cfg(feature = "uma2")]
+            ClientError::Uma2(ref err) => Some(err),
         }
     }
 }
@@ -153,6 +162,9 @@ pub use reqwest::Error as Http;
 pub use serde_json::Error as Json;
 
 use failure::Fail;
+
+#[cfg(feature = "uma2")]
+use crate::uma2::Uma2Error;
 
 #[derive(Debug, Fail)]
 pub enum Error {

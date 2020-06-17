@@ -1,10 +1,10 @@
-use crate::{error::Error, Config, Provider};
+use crate::{error::Error, Config, Configurable, Provider};
 use biscuit::jwk::JWKSet;
 use biscuit::Empty;
 use reqwest::Client;
 use url::Url;
 
-pub struct Discovered(pub Config);
+pub struct Discovered(Config);
 
 impl Provider for Discovered {
     fn auth_uri(&self) -> &Url {
@@ -16,11 +16,24 @@ impl Provider for Discovered {
     }
 }
 
+impl Configurable for Discovered {
+    fn config(&self) -> &Config {
+        &self.0
+    }
+}
+
+impl From<Config> for Discovered {
+    fn from(value: Config) -> Self {
+        Self(value)
+    }
+}
+
 pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
     issuer
         .path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "openid-configuration"]);
+
     let resp = client.get(issuer).send().await?;
     resp.json().await.map_err(Error::from)
 }

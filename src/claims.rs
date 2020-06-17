@@ -1,5 +1,4 @@
 use crate::Userinfo;
-use base64;
 use biscuit::SingleOrMultiple;
 use url::Url;
 
