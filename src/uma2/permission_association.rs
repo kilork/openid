@@ -1,17 +1,17 @@
-use serde::{Deserialize, Serialize};
-use crate::{Client, Provider, Claims, OAuth2Error};
-use crate::uma2::Uma2Provider;
-use biscuit::CompactJson;
 use crate::error::ClientError;
 use crate::uma2::error::Uma2Error::*;
-use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
+use crate::uma2::Uma2Provider;
+use crate::{Claims, Client, OAuth2Error, Provider};
+use biscuit::CompactJson;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Uma2PermissionLogic {
     Positive,
-    Negative
+    Negative,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -19,7 +19,7 @@ pub enum Uma2PermissionLogic {
 pub enum Uma2PermissionDecisionStrategy {
     Unanimous,
     Affirmative,
-    Consensus
+    Consensus,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -36,13 +36,13 @@ pub struct Uma2PermissionAssociation {
     pub permission_type: Option<String>,
     pub logic: Option<Uma2PermissionLogic>,
     #[serde(rename = "decisionStrategy")]
-    pub decision_strategy: Option<Uma2PermissionDecisionStrategy>
+    pub decision_strategy: Option<Uma2PermissionDecisionStrategy>,
 }
 
 impl<P, C> Client<P, C>
-    where
-        P: Provider + Uma2Provider,
-        C: CompactJson + Claims,
+where
+    P: Provider + Uma2Provider,
+    C: CompactJson + Claims,
 {
     /// Used when permissions can be set to resources by resource servers on behalf of their users
     ///
@@ -84,9 +84,8 @@ impl<P, C> Client<P, C>
         clients: Option<Vec<String>>,
         owner: Option<String>,
         logic: Option<Uma2PermissionLogic>,
-        decision_strategy: Option<Uma2PermissionDecisionStrategy>
+        decision_strategy: Option<Uma2PermissionDecisionStrategy>,
     ) -> Result<Uma2PermissionAssociation, ClientError> {
-
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -110,7 +109,7 @@ impl<P, C> Client<P, C>
             owner,
             permission_type: None,
             logic,
-            decision_strategy
+            decision_strategy,
         };
 
         let json = self
@@ -175,9 +174,8 @@ impl<P, C> Client<P, C>
         clients: Option<Vec<String>>,
         owner: Option<String>,
         logic: Option<Uma2PermissionLogic>,
-        decision_strategy: Option<Uma2PermissionDecisionStrategy>
+        decision_strategy: Option<Uma2PermissionDecisionStrategy>,
     ) -> Result<Uma2PermissionAssociation, ClientError> {
-
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -202,7 +200,7 @@ impl<P, C> Client<P, C>
             owner,
             permission_type: Some("uma".to_string()),
             logic,
-            decision_strategy
+            decision_strategy,
         };
 
         let json = self
@@ -239,7 +237,7 @@ impl<P, C> Client<P, C>
     pub async fn delete_uma2_resource_permission(
         &self,
         id: String,
-        token: String
+        token: String,
     ) -> Result<(), ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
@@ -294,9 +292,8 @@ impl<P, C> Client<P, C>
         name: Option<String>,
         scope: Option<String>,
         offset: Option<u32>,
-        count: Option<u32>
+        count: Option<u32>,
     ) -> Result<Vec<Uma2PermissionAssociation>, ClientError> {
-
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }

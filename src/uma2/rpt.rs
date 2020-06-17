@@ -1,22 +1,22 @@
-use crate::{Client, Provider, Claims, OAuth2Error, Bearer};
-use biscuit::CompactJson;
-use url::{form_urlencoded::Serializer};
 use crate::error::ClientError;
-use reqwest::header::{CONTENT_TYPE, AUTHORIZATION};
-use serde_json::Value;
-use crate::uma2::*;
 use crate::uma2::error::Uma2Error::*;
 use crate::uma2::permission_ticket::Uma2PermissionTicketRequest;
+use crate::uma2::*;
+use crate::{Bearer, Claims, Client, OAuth2Error, Provider};
+use biscuit::CompactJson;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use serde_json::Value;
+use url::form_urlencoded::Serializer;
 
 pub enum Uma2AuthenticationMethod {
     Bearer,
-    Basic
+    Basic,
 }
 
 impl<P, C> Client<P, C>
-    where
-        P: Provider + Uma2Provider,
-        C: CompactJson + Claims,
+where
+    P: Provider + Uma2Provider,
+    C: CompactJson + Claims,
 {
     ///
     /// Obtain an RPT from a UMA2 compliant OIDC server
@@ -58,7 +58,7 @@ impl<P, C> Client<P, C>
         audience: Option<String>,
         response_include_resource_name: Option<bool>,
         response_permissions_limit: Option<u32>,
-        submit_request: Option<bool>
+        submit_request: Option<bool>,
     ) -> Result<String, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
@@ -81,7 +81,10 @@ impl<P, C> Client<P, C>
         }
 
         if claim_token_format.is_some() {
-            body.append_pair("claim_token_format", claim_token_format.map(|b| b.to_string()).unwrap().as_str());
+            body.append_pair(
+                "claim_token_format",
+                claim_token_format.map(|b| b.to_string()).unwrap().as_str(),
+            );
         }
 
         if rpt.is_some() {
@@ -101,27 +104,29 @@ impl<P, C> Client<P, C>
         if response_include_resource_name.is_some() {
             body.append_pair(
                 "response_include_resource_name",
-                response_include_resource_name.map(|b| if b { "true" } else { "false" }).unwrap()
+                response_include_resource_name
+                    .map(|b| if b { "true" } else { "false" })
+                    .unwrap(),
             );
         }
         if response_permissions_limit.is_some() {
             body.append_pair(
                 "response_permissions_limit",
-                format!("{:}", response_permissions_limit.unwrap()).as_str()
+                format!("{:}", response_permissions_limit.unwrap()).as_str(),
             );
         }
 
         if submit_request.is_some() {
             body.append_pair(
                 "submit_request",
-                format!("{:}", submit_request.unwrap()).as_str()
+                format!("{:}", submit_request.unwrap()).as_str(),
             );
         }
 
         let body = body.finish();
         let auth_method = match auth_method {
             Uma2AuthenticationMethod::Basic => format!("Basic {:}", token),
-            Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token)
+            Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token),
         };
 
         let json = self
@@ -161,7 +166,7 @@ impl<P, C> Client<P, C>
     pub async fn create_uma2_permission_ticket(
         &self,
         pat_token: String,
-        requests: Vec<Uma2PermissionTicketRequest>
+        requests: Vec<Uma2PermissionTicketRequest>,
     ) -> Result<Uma2PermissionTicketResponse, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));

@@ -106,7 +106,7 @@ pub enum ClientError {
 
     /// UMA2 error.
     #[cfg(feature = "uma2")]
-    Uma2(Uma2Error)
+    Uma2(Uma2Error),
 }
 
 impl fmt::Display for ClientError {
@@ -119,7 +119,7 @@ impl fmt::Display for ClientError {
             // ClientError::Parse(ref err) => write!(f, "{}", err),
             ClientError::OAuth2(ref err) => write!(f, "{}", err),
             #[cfg(feature = "uma2")]
-            ClientError::Uma2(ref err) => write!(f, "{}", err)
+            ClientError::Uma2(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -134,7 +134,7 @@ impl std::error::Error for ClientError {
             // ClientError::Parse(ref err) => Some(err),
             ClientError::OAuth2(ref err) => Some(err),
             #[cfg(feature = "uma2")]
-            ClientError::Uma2(ref err) => Some(err)
+            ClientError::Uma2(ref err) => Some(err),
         }
     }
 }

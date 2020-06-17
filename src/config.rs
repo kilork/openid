@@ -32,10 +32,10 @@ pub struct Config {
     #[serde(default)]
     pub acr_values_supported: Option<Vec<String>>,
     // pairwise and public are valid by spec, but servers can add more
-    #[serde(default="empty_string_vec")]
+    #[serde(default = "empty_string_vec")]
     pub subject_types_supported: Vec<String>,
     // Must include at least RS256, none is only allowed with response types without id tokens
-    #[serde(default="empty_string_vec")]
+    #[serde(default = "empty_string_vec")]
     pub id_token_signing_alg_values_supported: Vec<String>,
     #[serde(default)]
     pub id_token_encryption_alg_values_supported: Option<Vec<String>>,

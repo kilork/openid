@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use crate::{Client, Provider, Claims, OAuth2Error};
-use crate::uma2::Uma2Provider;
-use biscuit::CompactJson;
 use crate::error::ClientError;
 use crate::uma2::error::Uma2Error::*;
-use reqwest::header::{ACCEPT, CONTENT_TYPE, AUTHORIZATION};
+use crate::uma2::Uma2Provider;
+use crate::{Claims, Client, OAuth2Error, Provider};
+use biscuit::CompactJson;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -20,25 +20,25 @@ pub struct Uma2Resource {
     pub display_name: Option<String>,
     pub owner: Option<Uma2Owner>,
     #[serde(rename = "ownerManagedAccess")]
-    pub owner_managed_access: Option<bool>
+    pub owner_managed_access: Option<bool>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Uma2ResourceScope {
     pub id: Option<String>,
-    pub name: Option<String>
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Uma2Owner {
     pub id: Option<String>,
-    pub name: Option<String>
+    pub name: Option<String>,
 }
 
 impl<P, C> Client<P, C>
-    where
-        P: Provider + Uma2Provider,
-        C: CompactJson + Claims,
+where
+    P: Provider + Uma2Provider,
+    C: CompactJson + Claims,
 {
     ///
     /// Create a UMA2 managed resource
@@ -63,9 +63,8 @@ impl<P, C> Client<P, C>
         resource_scopes: Option<Vec<String>>,
         display_name: Option<String>,
         owner: Option<Uma2Owner>,
-        owner_managed_access: Option<bool>
+        owner_managed_access: Option<bool>,
     ) -> Result<Uma2Resource, ClientError> {
-
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -74,11 +73,15 @@ impl<P, C> Client<P, C>
             return Err(ClientError::Uma2(NoResourceSetEndpoint));
         }
 
-        let resource_scopes = resource_scopes.map(|names|
-            names.iter()
-                .map(|name| Uma2ResourceScope { name: Some(name.clone()), id: None})
+        let resource_scopes = resource_scopes.map(|names| {
+            names
+                .iter()
+                .map(|name| Uma2ResourceScope {
+                    name: Some(name.clone()),
+                    id: None,
+                })
                 .collect()
-        );
+        });
 
         let url = self.provider.resource_registration_uri().unwrap().clone();
 
@@ -90,7 +93,7 @@ impl<P, C> Client<P, C>
             resource_scopes,
             display_name,
             owner,
-            owner_managed_access
+            owner_managed_access,
         };
 
         let json = self
@@ -138,7 +141,7 @@ impl<P, C> Client<P, C>
         resource_scopes: Option<Vec<String>>,
         display_name: Option<String>,
         owner: Option<Uma2Owner>,
-        owner_managed_access: Option<bool>
+        owner_managed_access: Option<bool>,
     ) -> Result<Uma2Resource, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
@@ -148,11 +151,15 @@ impl<P, C> Client<P, C>
             return Err(ClientError::Uma2(NoResourceSetEndpoint));
         }
 
-        let resource_scopes = resource_scopes.map(|names|
-            names.iter()
-                .map(|name| Uma2ResourceScope { name: Some(name.clone()), id: None})
+        let resource_scopes = resource_scopes.map(|names| {
+            names
+                .iter()
+                .map(|name| Uma2ResourceScope {
+                    name: Some(name.clone()),
+                    id: None,
+                })
                 .collect()
-        );
+        });
 
         let url = self.provider.resource_registration_uri().unwrap().clone();
 
@@ -164,7 +171,7 @@ impl<P, C> Client<P, C>
             resource_scopes,
             display_name,
             owner,
-            owner_managed_access
+            owner_managed_access,
         };
 
         let json = self
@@ -194,7 +201,11 @@ impl<P, C> Client<P, C>
     /// # Arguments
     /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
     /// * `id` The server identifier of the resource
-    pub async fn delete_uma2_resource(&self, pat_token: String, id: String) -> Result<(), ClientError> {
+    pub async fn delete_uma2_resource(
+        &self,
+        pat_token: String,
+        id: String,
+    ) -> Result<(), ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -232,7 +243,11 @@ impl<P, C> Client<P, C>
     /// # Arguments
     /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
     /// * `id` The server identifier of the resource
-    pub async fn get_uma2_resource_by_id(&self, pat_token: String, id: String) -> Result<Uma2Resource, ClientError> {
+    pub async fn get_uma2_resource_by_id(
+        &self,
+        pat_token: String,
+        id: String,
+    ) -> Result<Uma2Resource, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
@@ -285,7 +300,7 @@ impl<P, C> Client<P, C>
         uri: Option<String>,
         owner: Option<String>,
         resource_type: Option<String>,
-        scope: Option<String>
+        scope: Option<String>,
     ) -> Result<Vec<String>, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));

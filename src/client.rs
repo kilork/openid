@@ -4,8 +4,8 @@ use crate::{
         ClientError, Decode, Error, Expiry, Jose, Mismatch, Missing, Userinfo as ErrorUserinfo,
         Validation,
     },
-    Bearer, Claims, Config, Discovered, IdToken, OAuth2Error, Options, Provider, StandardClaims,
-    Token, Userinfo, Configurable,
+    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
+    StandardClaims, Token, Userinfo,
 };
 use biscuit::{
     jwa::{self, SignatureAlgorithm},
@@ -77,7 +77,7 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 }
 
 impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
-        /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
+    /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
     pub fn redirect_url(&self) -> &str {
         self.redirect_uri
             .as_ref()

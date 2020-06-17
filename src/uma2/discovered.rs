@@ -1,10 +1,10 @@
 use crate::{
     error::Error,
     uma2::{Uma2Config, Uma2Provider},
-    Config, Configurable, Provider, Claims, Client,
+    Claims, Client, Config, Configurable, Provider,
 };
-use url::Url;
 use biscuit::CompactJson;
+use url::Url;
 
 pub struct DiscoveredUma2(Uma2Config);
 
@@ -58,7 +58,8 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
         let uma2_config = discover_uma2(&http_client, &issuer).await?;
-        let jwks = crate::discovered::jwks(&http_client, uma2_config.config.jwks_uri.clone()).await?;
+        let jwks =
+            crate::discovered::jwks(&http_client, uma2_config.config.jwks_uri.clone()).await?;
 
         let provider = uma2_config.into();
 

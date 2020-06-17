@@ -324,8 +324,8 @@ mod bearer;
 mod claims;
 mod client;
 mod config;
-mod custom_claims;
 mod configurable;
+mod custom_claims;
 mod discovered;
 mod display;
 pub mod error;
@@ -346,6 +346,7 @@ pub use bearer::Bearer;
 pub use claims::Claims;
 pub use client::Client;
 pub use config::Config;
+pub use configurable::Configurable;
 pub use custom_claims::CustomClaims;
 pub use discovered::Discovered;
 pub use display::Display;
@@ -356,7 +357,6 @@ pub use provider::Provider;
 pub use standard_claims::StandardClaims;
 pub use token::Token;
 pub use userinfo::Userinfo;
-pub use configurable::Configurable;
 
 /// Reimport `biscuit` dependency.
 pub mod biscuit {
