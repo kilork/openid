@@ -328,6 +328,7 @@ mod client;
 mod config;
 mod configurable;
 mod custom_claims;
+mod deserializers;
 mod discovered;
 mod display;
 pub mod error;
