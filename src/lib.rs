@@ -365,7 +365,7 @@ pub mod biscuit {
     pub use biscuit::*;
 }
 
-type IdToken<T> = Jws<T, Empty>;
+pub type IdToken<T> = Jws<T, Empty>;
 pub type DiscoveredClient = Client<Discovered, StandardClaims>;
 #[cfg(feature = "uma2")]
 pub type DiscoveredUma2Client = Client<uma2::DiscoveredUma2, StandardClaims>;
