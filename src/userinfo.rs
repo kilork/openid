@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
 use validator_derive::Validate;
+use crate::deserializers::bool_from_str_or_bool;
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
 // TODO is there a way to use claims_supported in config to simplify this struct?
@@ -43,7 +44,7 @@ pub struct Userinfo {
     #[validate(email)]
     /// End-User's preferred e-mail address. Its value MUST conform to the RFC 5322 [RFC5322] addr-spec syntax. The RP MUST NOT rely upon this value being unique, as discussed in Section 5.7.
     pub email: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "bool_from_str_or_bool")]
     /// True if the End-User's e-mail address has been verified; otherwise false. When this Claim Value is true, this means that the OP took affirmative steps to ensure that this e-mail address was controlled by the End-User at the time the verification was performed. The means by which an e-mail address is verified is context-specific, and dependent upon the trust framework or contractual agreements within which the parties are operating.
     pub email_verified: bool,
     // Isn't required to be just male or female
@@ -66,7 +67,7 @@ pub struct Userinfo {
     #[serde(default)]
     /// End-User's preferred telephone number. E.164 [E.164] is RECOMMENDED as the format of this Claim, for example, +1 (425) 555-1212 or +56 (2) 687 2400. If the phone number contains an extension, it is RECOMMENDED that the extension be represented using the RFC 3966 [RFC3966] extension syntax, for example, +1 (604) 555-1234;ext=5678.
     pub phone_number: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "bool_from_str_or_bool")]
     /// True if the End-User's phone number has been verified; otherwise false. When this Claim Value is true, this means that the OP took affirmative steps to ensure that this phone number was controlled by the End-User at the time the verification was performed. The means by which a phone number is verified is context-specific, and dependent upon the trust framework or contractual agreements within which the parties are operating. When true, the phone_number Claim MUST be in E.164 format and any extensions MUST be represented in RFC 3966 format.
     pub phone_number_verified: bool,
     #[serde(default)]
