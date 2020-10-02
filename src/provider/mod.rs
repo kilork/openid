@@ -1,6 +1,9 @@
 /*!
 OAuth 2.0 providers.
 */
+#[cfg(feature = "microsoft")]
+pub mod microsoft;
+
 use url::Url;
 
 /// OAuth 2.0 providers.

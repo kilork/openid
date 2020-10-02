@@ -20,8 +20,9 @@ readme = 'README.md'
 repository = 'https://github.com/kilork/openid'
 
 [features]
-uma2 = []
 default = []
+microsoft = []
+uma2 = []
 
 [dependencies]
 lazy_static = '1.4'
