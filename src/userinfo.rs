@@ -4,7 +4,6 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
-use validator_derive::Validate;
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
 // TODO is there a way to use claims_supported in config to simplify this struct?
