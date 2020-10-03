@@ -2,6 +2,9 @@
 OAuth 2.0 providers.
 */
 #[cfg(feature = "microsoft")]
+/// Microsoft OpenID Connect.
+///
+/// See [Microsoft identity platform and OpenID Connect protocol](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc)
 pub mod microsoft;
 
 use url::Url;
