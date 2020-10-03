@@ -341,7 +341,10 @@ mod standard_claims;
 mod token;
 mod userinfo;
 
-#[cfg(feature = "uma2")]
+#[cfg(any(feature = "uma2", doc))]
+/// UMA2 OIDC/OAuth2 extension.
+///
+/// See [Federated Authorization for User-Managed Access (UMA) 2.0](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-authz-2.0-09.html)
 pub mod uma2;
 
 pub use ::biscuit::jws::Compact as Jws;
