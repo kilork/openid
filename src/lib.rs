@@ -11,7 +11,9 @@ Implements [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-cor
 
 Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-authz-2.0-09.html) - User Managed Access, an extension to OIDC/OAuth2. Use feature flag `uma2` to enable this feature.
 
-This is quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. Basic idea was to solve particular task, as result most of good ideas from original crates were perverted and over-simplified.
+It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
+
+This library is a quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. Basic idea was to solve particular task, as result most of good ideas from original crates were perverted and over-simplified.
 
 Using [reqwest](https://crates.io/crates/reqwest) for the HTTP client and [biscuit](https://crates.io/crates/biscuit) for Javascript Object Signing and Encryption (JOSE).
 

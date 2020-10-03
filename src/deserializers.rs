@@ -1,9 +1,10 @@
-use serde::Deserializer;
 use de::Visitor;
 use serde::de;
+use serde::Deserializer;
 
 pub fn bool_from_str_or_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
-    where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     deserializer.deserialize_any(BoolOrStringVisitor)
 }
