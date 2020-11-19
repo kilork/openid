@@ -59,7 +59,17 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         redirect: Option<String>,
         issuer: Url,
     ) -> Result<Self, Error> {
-        let http_client = reqwest::Client::new();
+        Self::discover_with_client(reqwest::Client::new(), id, secret, redirect, issuer).await
+    }
+
+    /// Constructs a client from an issuer url and client parameters via discovery
+    pub async fn discover_with_client(
+        http_client: reqwest::Client,
+        id: String,
+        secret: String,
+        redirect: Option<String>,
+        issuer: Url,
+    ) -> Result<Self, Error> {
         let config = discovered::discover(&http_client, issuer).await?;
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
 
