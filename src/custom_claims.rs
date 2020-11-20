@@ -43,7 +43,7 @@ impl<T> Claims for T
 where
     T: CustomClaims,
 {
-    fn iss(&self) -> &biscuit::Url {
+    fn iss(&self) -> &url::Url {
         self.standard_claims().iss()
     }
     fn sub(&self) -> &str {

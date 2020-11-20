@@ -28,7 +28,7 @@ uma2 = []
 lazy_static = '1.4'
 serde_json = { version = '1', default-features = false }
 base64 = '0.13'
-biscuit = '0.4'
+biscuit = '0.5'
 failure = '0.1'
 validator = { version = '0.11', features = ["derive"] }
 
