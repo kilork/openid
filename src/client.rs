@@ -288,11 +288,11 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         let alg = header.registered.algorithm;
         match key.algorithm {
             // HMAC
-            AlgorithmParameters::OctetKey { ref value, .. } => match alg {
+            AlgorithmParameters::OctetKey(ref parameters) => match alg {
                 SignatureAlgorithm::HS256
                 | SignatureAlgorithm::HS384
                 | SignatureAlgorithm::HS512 => {
-                    *token = token.decode(&Secret::Bytes(value.clone()), alg)?;
+                    *token = token.decode(&Secret::Bytes(parameters.value.clone()), alg)?;
                     Ok(())
                 }
                 _ => wrong_key!("HS256 | HS384 | HS512", alg),
@@ -311,6 +311,9 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                 _ => wrong_key!("RS256 | RS384 | RS512", alg),
             },
             AlgorithmParameters::EllipticCurve(_) => unimplemented!("No support for EC keys yet"),
+            AlgorithmParameters::OctetKeyPair(_) => {
+                unimplemented!("No support for Octet key pair yet")
+            }
         }
     }
 
