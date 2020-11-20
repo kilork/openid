@@ -1,6 +1,6 @@
 [package]
 name = 'openid'
-version = '0.6.0'
+version = '0.6.1'
 authors = ['Alexander Korolev <kilork@yandex.ru>']
 edition = '2018'
 categories = []
@@ -51,3 +51,6 @@ features = ['derive']
 version = '0.10'
 default-features = false
 features = ['json']
+
+[patch.crates-io]
+biscuit = { git = 'https://github.com/kilork/biscuit', branch = "v0.4.2-ring-0.16.15" }
