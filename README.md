@@ -22,7 +22,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.6"
+openid = "0.7"
 ```
 
 ### Use case: [Actix](https://actix.rs/) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -45,7 +45,7 @@ actix-rt = '1.0'
 exitfailure = "0.5"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = "2.1"
-openid = "0.6"
+openid = "0.7"
 
 [dependencies.serde]
 version = '1.0'
