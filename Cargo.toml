@@ -1,6 +1,6 @@
 [package]
 name = 'openid'
-version = '0.7.0'
+version = '0.8.0'
 authors = ['Alexander Korolev <kilork@yandex.ru>']
 edition = '2018'
 categories = []
@@ -30,7 +30,7 @@ serde_json = { version = '1', default-features = false }
 base64 = '0.13'
 biscuit = '0.5'
 failure = '0.1'
-validator = { version = '0.11', features = ["derive"] }
+validator = { version = '0.12', features = ["derive"] }
 
 [dependencies.url]
 version = '2'
@@ -48,6 +48,6 @@ default-features = false
 features = ['derive']
 
 [dependencies.reqwest]
-version = '0.10'
+version = '0.11'
 default-features = false
 features = ['json']
