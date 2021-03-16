@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 // TODO I wish we could impl default for this, but you cannot have a config without issuer etc
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     pub issuer: Url,
     pub authorization_endpoint: Url,

@@ -4,6 +4,7 @@ use biscuit::Empty;
 use reqwest::Client;
 use url::Url;
 
+#[derive(Debug, Clone)]
 pub struct Discovered(Config);
 
 impl Provider for Discovered {
