@@ -532,6 +532,37 @@ where
         Ok(token)
     }
 
+    /// Requests an access token using the Resource Owner Password Credentials Grant flow
+    ///
+    /// See [RFC 6749, section 4.3](https://tools.ietf.org/html/rfc6749#section-4.3)
+    pub async fn request_token_using_password_credentials(
+        &self,
+        username: &str,
+        password: &str,
+        scope: Option<&str>,
+    ) -> Result<Bearer, ClientError> {
+        // Ensure the non thread-safe `Serializer` is not kept across
+        // an `await` boundary by localizing it to this inner scope.
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "password");
+            body.append_pair("username", username);
+            body.append_pair("password", password);
+            body.append_pair("client_id", &self.client_id);
+            body.append_pair("client_secret", &self.client_secret);
+
+            if let Some(scope) = scope {
+                body.append_pair("scope", scope);
+            }
+
+            body.finish()
+        };
+
+        let json = self.post_token(body).await?;
+        let token: Bearer = serde_json::from_value(json)?;
+        Ok(token)
+    }
+
     /// Requests an access token using the Client Credentials Grant flow
     ///
     /// See [RFC 6749, section 4.4](https://tools.ietf.org/html/rfc6749#section-4.4)
