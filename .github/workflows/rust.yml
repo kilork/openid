@@ -21,3 +21,7 @@ jobs:
       run: cargo build --features uma2
     - name: Run tests with UMA2
       run: cargo test --verbose --features uma2
+    - name: Build with rustls
+      run: cargo build --no-default-features --features rustls
+    - name: Run tests with rustls
+      run: cargo test --no-default-features --verbose --features rustls
