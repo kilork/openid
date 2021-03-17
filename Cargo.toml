@@ -20,9 +20,11 @@ readme = 'README.md'
 repository = 'https://github.com/kilork/openid'
 
 [features]
-default = []
+default = ['native-tls']
 microsoft = []
 uma2 = []
+native-tls = ['reqwest/native-tls']
+rustls = ['reqwest/rustls-tls']
 
 [dependencies]
 lazy_static = '1.4'

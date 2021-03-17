@@ -26,6 +26,13 @@ Add dependency to Cargo.toml:
 openid = "0.8"
 ```
 
+By default it uses native tls, if you want to use `rustls`:
+
+```toml
+[dependencies]
+openid = { version = "0.8", default-features = false, features = ["rustls"] }
+```
+
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
 
 This example provides only Rust part, assuming just default JHipster frontend settings.
