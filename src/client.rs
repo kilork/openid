@@ -51,6 +51,25 @@ macro_rules! wrong_key {
     };
 }
 
+/// Implement clone if the provider can be cloned.
+impl<C: CompactJson + Claims, P: Clone> Clone for Client<P, C> {
+    fn clone(&self) -> Self {
+        let jwks = self.jwks.as_ref().map(|jwks| JWKSet {
+            keys: jwks.keys.clone(),
+        });
+
+        Self {
+            provider: self.provider.clone(),
+            client_id: self.client_id.clone(),
+            client_secret: self.client_secret.clone(),
+            redirect_uri: self.redirect_uri.as_ref().cloned(),
+            http_client: self.http_client.clone(),
+            jwks,
+            marker: PhantomData,
+        }
+    }
+}
+
 impl<C: CompactJson + Claims> Client<Discovered, C> {
     /// Constructs a client from an issuer url and client parameters via discovery
     pub async fn discover(
