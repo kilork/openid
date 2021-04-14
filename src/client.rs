@@ -609,25 +609,30 @@ where
         token: Bearer,
         scope: Option<&str>,
     ) -> Result<Bearer, ClientError> {
-        let mut body = Serializer::new(String::new());
-        body.append_pair("grant_type", "refresh_token");
-        body.append_pair(
-            "refresh_token",
-            token
-                .refresh_token
-                .as_deref()
-                .expect("No refresh_token field"),
-        );
+        // Ensure the non thread-safe `Serializer` is not kept across
+        // an `await` boundary by localizing it to this inner scope.
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "refresh_token");
+            body.append_pair(
+                "refresh_token",
+                token
+                    .refresh_token
+                    .as_deref()
+                    .expect("No refresh_token field"),
+            );
 
-        if let Some(scope) = scope {
-            body.append_pair("scope", scope);
-        }
+            if let Some(scope) = scope {
+                body.append_pair("scope", scope);
+            }
 
-        if self.provider.credentials_in_body() {
-            body.append_pair("client_id", &self.client_id);
-            body.append_pair("client_secret", &self.client_secret);
-        }
-        let body = body.finish();
+            if self.provider.credentials_in_body() {
+                body.append_pair("client_id", &self.client_id);
+                body.append_pair("client_secret", &self.client_secret);
+            }
+
+            body.finish()
+        };
 
         let json = self.post_token(body).await?;
         let mut new_token: Bearer = serde_json::from_value(json)?;
