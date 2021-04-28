@@ -1,6 +1,7 @@
 use crate::{
-    client::{validate_token_aud, validate_token_exp, validate_token_nonce, Client},
+    client::Client,
     error::Error,
+    validation::{validate_token_aud, validate_token_exp, validate_token_nonce},
     Claims, Configurable, IdToken, Provider, Token,
 };
 use biscuit::CompactJson;
