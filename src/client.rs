@@ -255,10 +255,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                 }
                 _ => wrong_key!("RS256 | RS384 | RS512", alg),
             },
-            AlgorithmParameters::EllipticCurve(_) => unimplemented!("No support for EC keys yet"),
-            AlgorithmParameters::OctetKeyPair(_) => {
-                unimplemented!("No support for Octet key pair yet")
-            }
+            AlgorithmParameters::EllipticCurve(_) => Err(Decode::UnsupportedEllipticCurve)?,
+            AlgorithmParameters::OctetKeyPair(_) => Err(Decode::UnsupportedOctetKeyPair)?,
         }
     }
 
