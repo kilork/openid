@@ -194,6 +194,10 @@ pub enum Decode {
     MissingKey(String),
     #[error("JWK Set is empty")]
     EmptySet,
+    #[error("No support for EC keys yet")]
+    UnsupportedEllipticCurve,
+    #[error("No support for Octet key pair yet")]
+    UnsupportedOctetKeyPair,
 }
 
 #[derive(Debug, Error)]
