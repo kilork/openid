@@ -38,10 +38,7 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the access token hash using alg's hash alg
     fn at_hash_to_vec(&self) -> Option<Vec<u8>> {
-        if let Some(ref hash) = self.at_hash() {
-            return base64::decode_config(hash.as_str(), base64::URL_SAFE).ok();
-        }
-        None
+        base64::decode_config(self.at_hash()?, base64::URL_SAFE).ok()
     }
     /// Decodes c_hash. Returns None if it doesn't exist or something goes wrong.
     ///
@@ -49,9 +46,6 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the code hash using alg's hash alg
     fn c_hash_to_vec(&self) -> Option<Vec<u8>> {
-        if let Some(ref hash) = self.c_hash() {
-            return base64::decode_config(hash.as_str(), base64::URL_SAFE).ok();
-        }
-        None
+        base64::decode_config(self.c_hash()?, base64::URL_SAFE).ok()
     }
 }

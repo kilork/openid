@@ -182,9 +182,9 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     ) -> Result<Token<C>, Error> {
         let bearer = self.request_token(auth_code).await.map_err(Error::from)?;
         let mut token: Token<C> = bearer.into();
-        if let Some(mut id_token) = token.id_token.as_mut() {
-            self.decode_token(&mut id_token)?;
-            self.validate_token(&id_token, nonce, max_age)?;
+        if let Some(id_token) = token.id_token.as_mut() {
+            self.decode_token(id_token)?;
+            self.validate_token(id_token, nonce, max_age)?;
         }
         Ok(token)
     }
@@ -255,8 +255,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                 }
                 _ => wrong_key!("RS256 | RS384 | RS512", alg),
             },
-            AlgorithmParameters::EllipticCurve(_) => Err(Decode::UnsupportedEllipticCurve)?,
-            AlgorithmParameters::OctetKeyPair(_) => Err(Decode::UnsupportedOctetKeyPair)?,
+            AlgorithmParameters::EllipticCurve(_) => Err(Decode::UnsupportedEllipticCurve.into()),
+            AlgorithmParameters::OctetKeyPair(_) => Err(Decode::UnsupportedOctetKeyPair.into()),
         }
     }
 
