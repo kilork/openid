@@ -1,6 +1,6 @@
 [package]
 name = 'openid'
-version = '0.9.3'
+version = '0.9.4'
 authors = ['Alexander Korolev <alexander.korolev.germany@gmail.com>']
 edition = '2018'
 categories = []
