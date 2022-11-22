@@ -7,7 +7,7 @@ use std::{error, fmt};
 /// OAuth 2.0 error.
 ///
 /// See [RFC 6749, section 5.2](http://tools.ietf.org/html/rfc6749#section-5.2).
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct OAuth2Error {
     /// Error code.
     pub error: OAuth2ErrorCode,
@@ -42,6 +42,7 @@ impl error::Error for OAuth2Error {
 ///
 /// See [RFC 6749, section 5.2](http://tools.ietf.org/html/rfc6749#section-5.2).
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum OAuth2ErrorCode {
     /// The request is missing a required parameter, includes an unsupported parameter value (other
     /// than grant type), repeats a parameter, includes multiple credentials, utilizes more than
@@ -246,4 +247,32 @@ pub enum Userinfo {
     NoUrl,
     #[error("Token and Userinfo Subjects mismatch: '{expected}', '{actual}'")]
     MismatchSubject { expected: String, actual: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn it_deserializes_error() {
+        let error_json = json!({
+            "error": "invalid_request",
+            "error_description": "Only resources with owner managed accessed can have policies",
+        });
+
+        let error: OAuth2Error = serde_json::from_value(error_json).unwrap();
+
+        assert_eq!(
+            error,
+            OAuth2Error {
+                error: OAuth2ErrorCode::InvalidRequest,
+                error_description: Some(
+                    "Only resources with owner managed accessed can have policies".to_string()
+                ),
+                error_uri: None,
+            }
+        );
+    }
 }
