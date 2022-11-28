@@ -67,10 +67,13 @@ pub fn validate_token_exp<C: Claims>(claims: &C, max_age: Option<&Duration>) -> 
     if now.timestamp() < 1504758600 {
         panic!("chrono::Utc::now() can never be before this was written!")
     }
-    if claims.exp() <= now.timestamp() {
-        return Err(Validation::Expired(Expiry::Expires(
-            chrono::naive::NaiveDateTime::from_timestamp(claims.exp(), 0),
-        ))
+    let exp = claims.exp();
+    if exp <= now.timestamp() {
+        return Err(Validation::Expired(
+            chrono::naive::NaiveDateTime::from_timestamp_opt(exp, 0)
+                .map(Expiry::Expires)
+                .unwrap_or_else(|| Expiry::NotUnix(exp)),
+        )
         .into());
     }
 
