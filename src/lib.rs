@@ -41,10 +41,10 @@ Cargo.toml:
 
 ```toml
 [package]
-name = 'openid-example'
-version = '0.1.0'
-authors = ['Alexander Korolev <alexander.korolev.germany@gmail.com>']
-edition = '2018'
+name = "openid-example"
+version = "0.1.0"
+authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
