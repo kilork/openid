@@ -37,6 +37,7 @@ pub async fn authenticate<C: CompactJson + Claims, P: Provider + Configurable>(
 /// - Validation::Mismatch::AuthorizedParty if the azp is not the client_id
 /// - Validation::Expired::Expires if the current time is past the expiration time
 /// - Validation::Expired::MaxAge is the token is older than the provided max_age
+/// - Validation::Expired::NotUnix if the expiration time is not valid UNIX timestamp
 /// - Validation::Missing::Authtime if a max_age was given and the token has no auth time
 pub fn validate_token<C: CompactJson + Claims, P: Provider + Configurable>(
     client: &Client<P, C>,

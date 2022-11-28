@@ -239,6 +239,8 @@ pub enum Expiry {
     Expires(::chrono::naive::NaiveDateTime),
     #[error("Token is too old: {0}")]
     MaxAge(::chrono::Duration),
+    #[error("Token exp is not valid UNIX timestamp: {0}")]
+    NotUnix(i64),
 }
 
 #[derive(Debug, Error)]
