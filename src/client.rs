@@ -266,7 +266,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// - Jose Error if the Token isn't decoded
     /// - Validation::Mismatch::Issuer if the provider issuer and token issuer mismatch
     /// - Validation::Mismatch::Nonce if a given nonce and the token nonce mismatch
-    /// - Validation::Missing::Nonce if either the token or args has a nonce and the other does not
+    /// - Validation::Missing::Nonce if args has a nonce and the token does not
     /// - Validation::Missing::Audience if the token aud doesn't contain the client id
     /// - Validation::Missing::AuthorizedParty if there are multiple audiences and azp is missing
     /// - Validation::Mismatch::AuthorizedParty if the azp is not the client_id
