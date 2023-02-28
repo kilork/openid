@@ -16,8 +16,8 @@ pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(
 }
 
 pub fn validate_token_nonce<C: Claims>(claims: &C, nonce: Option<&str>) -> Result<(), Error> {
-    match nonce {
-        Some(expected) => match claims.nonce() {
+    if let Some(expected) = nonce {
+        match claims.nonce() {
             Some(actual) => {
                 if expected != actual {
                     let expected = expected.to_string();
@@ -26,11 +26,6 @@ pub fn validate_token_nonce<C: Claims>(claims: &C, nonce: Option<&str>) -> Resul
                 }
             }
             None => return Err(Validation::Missing(Missing::Nonce).into()),
-        },
-        None => {
-            if claims.nonce().is_some() {
-                return Err(Validation::Missing(Missing::Nonce).into());
-            }
         }
     }
 
