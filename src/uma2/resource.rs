@@ -1,10 +1,12 @@
-use crate::error::ClientError;
-use crate::uma2::error::Uma2Error::*;
-use crate::uma2::Uma2Provider;
-use crate::{Claims, Client, OAuth2Error, Provider};
+use crate::{
+    error::ClientError,
+    uma2::{error::Uma2Error::*, Uma2Provider},
+    Claims, Client, OAuth2Error, Provider,
+};
+
 use biscuit::CompactJson;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -54,26 +56,21 @@ where
     /// * `owner` Resource server is the default user, unless this value is set. Can be the username
     /// of the user or its server identifier
     /// * `owner_managed_access` Whether to allow user managed access of this resource
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_uma2_resource(
         &self,
         pat_token: String,
         name: String,
-        resource_type: Option<String>,
-        icon_uri: Option<String>,
-        resource_scopes: Option<Vec<String>>,
-        display_name: Option<String>,
-        owner: Option<Uma2Owner>,
-        owner_managed_access: Option<bool>,
+        resource_type: impl Into<Option<String>>,
+        icon_uri: impl Into<Option<String>>,
+        resource_scopes: impl Into<Option<Vec<String>>>,
+        display_name: impl Into<Option<String>>,
+        owner: impl Into<Option<Uma2Owner>>,
+        owner_managed_access: impl Into<Option<bool>>,
     ) -> Result<Uma2Resource, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
+        let url = self.asserted_uma2_resource_url()?;
 
-        if self.provider.resource_registration_uri().is_none() {
-            return Err(ClientError::Uma2(NoResourceSetEndpoint));
-        }
-
-        let resource_scopes = resource_scopes.map(|names| {
+        let resource_scopes = resource_scopes.into().map(|names| {
             names
                 .iter()
                 .map(|name| Uma2ResourceScope {
@@ -83,39 +80,18 @@ where
                 .collect()
         });
 
-        let url = self.provider.resource_registration_uri().unwrap().clone();
-
         let body = Uma2Resource {
             id: None,
             name,
-            resource_type,
-            icon_uri,
+            resource_type: resource_type.into(),
+            icon_uri: icon_uri.into(),
             resource_scopes,
-            display_name,
-            owner,
-            owner_managed_access,
+            display_name: display_name.into(),
+            owner: owner.into(),
+            owner_managed_access: owner_managed_access.into(),
         };
 
-        let json = self
-            .http_client
-            .post(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
-            .header(ACCEPT, "application/json")
-            .json(&body)
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let resource: Uma2Resource = serde_json::from_value(json)?;
-            Ok(resource)
-        }
+        self.post(url, pat_token, body).await
     }
 
     ///
@@ -132,6 +108,7 @@ where
     /// * `owner` Resource server is the default user, unless this value is set. Can be the username
     /// of the user or its server identifier
     /// * `owner_managed_access` Whether to allow user managed access of this resource
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_uma2_resource(
         &self,
         pat_token: String,
@@ -143,13 +120,7 @@ where
         owner: Option<Uma2Owner>,
         owner_managed_access: Option<bool>,
     ) -> Result<Uma2Resource, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
-
-        if self.provider.resource_registration_uri().is_none() {
-            return Err(ClientError::Uma2(NoResourceSetEndpoint));
-        }
+        let url = self.asserted_uma2_resource_url()?;
 
         let resource_scopes = resource_scopes.map(|names| {
             names
@@ -160,8 +131,6 @@ where
                 })
                 .collect()
         });
-
-        let url = self.provider.resource_registration_uri().unwrap().clone();
 
         let body = Uma2Resource {
             id: None,
@@ -174,26 +143,7 @@ where
             owner_managed_access,
         };
 
-        let json = self
-            .http_client
-            .put(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
-            .header(ACCEPT, "application/json")
-            .json(&body)
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let resource: Uma2Resource = serde_json::from_value(json)?;
-            Ok(resource)
-        }
+        self.put(url, pat_token, body).await
     }
 
     /// Deletes a UMA2 managed resource
@@ -206,36 +156,9 @@ where
         pat_token: String,
         id: String,
     ) -> Result<(), ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
+        let url = self.asserted_uma2_resource_url_id(&id)?;
 
-        if self.provider.resource_registration_uri().is_none() {
-            return Err(ClientError::Uma2(NoResourceSetEndpoint));
-        }
-
-        let mut url = self.provider.resource_registration_uri().unwrap().clone();
-
-        url.path_segments_mut()
-            .map_err(|_| ClientError::Uma2(ResourceSetEndpointMalformed))?
-            .extend(&[id]);
-
-        let json = self
-            .http_client
-            .delete(url)
-            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            Ok(())
-        }
+        self.delete(url, pat_token).await
     }
 
     /// Get a UMA2 managed resource by its identifier
@@ -248,38 +171,9 @@ where
         pat_token: String,
         id: String,
     ) -> Result<Uma2Resource, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
+        let url = self.asserted_uma2_resource_url_id(&id)?;
 
-        if self.provider.resource_registration_uri().is_none() {
-            return Err(ClientError::Uma2(NoResourceSetEndpoint));
-        }
-
-        let mut url = self.provider.resource_registration_uri().unwrap().clone();
-
-        url.path_segments_mut()
-            .map_err(|_| ClientError::Uma2(ResourceSetEndpointMalformed))?
-            .extend(&[id]);
-
-        let json = self
-            .http_client
-            .get(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let resource: Uma2Resource = serde_json::from_value(json)?;
-            Ok(resource)
-        }
+        self.get(url, pat_token).await
     }
 
     ///
@@ -296,58 +190,153 @@ where
     pub async fn search_for_uma2_resources(
         &self,
         pat_token: String,
-        name: Option<String>,
-        uri: Option<String>,
-        owner: Option<String>,
-        resource_type: Option<String>,
-        scope: Option<String>,
+        name: impl Into<Option<String>>,
+        uri: impl Into<Option<String>>,
+        owner: impl Into<Option<String>>,
+        resource_type: impl Into<Option<String>>,
+        scope: impl Into<Option<String>>,
     ) -> Result<Vec<String>, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
-
-        if self.provider.resource_registration_uri().is_none() {
-            return Err(ClientError::Uma2(NoResourceSetEndpoint));
-        }
-
-        let mut url = self.provider.resource_registration_uri().unwrap().clone();
+        let mut url = self.asserted_uma2_resource_url()?;
         {
             let mut query = url.query_pairs_mut();
-            if name.is_some() {
-                query.append_pair("name", name.unwrap().as_str());
+            if let Some(name) = name.into().as_deref() {
+                query.append_pair("name", name);
             }
-            if uri.is_some() {
-                query.append_pair("uri", uri.unwrap().as_str());
+            if let Some(uri) = uri.into().as_deref() {
+                query.append_pair("uri", uri);
             }
-            if owner.is_some() {
-                query.append_pair("owner", owner.unwrap().as_str());
+            if let Some(owner) = owner.into().as_deref() {
+                query.append_pair("owner", owner);
             }
-            if resource_type.is_some() {
-                query.append_pair("type", resource_type.unwrap().as_str());
+            if let Some(resource_type) = resource_type.into().as_deref() {
+                query.append_pair("type", resource_type);
             }
-            if scope.is_some() {
-                query.append_pair("scope", scope.unwrap().as_str());
+            if let Some(scope) = scope.into().as_deref() {
+                query.append_pair("scope", scope);
             }
         }
 
+        self.get(url, pat_token).await
+    }
+
+    pub(crate) async fn post<T, B>(
+        &self,
+        url: url::Url,
+        token: String,
+        body: B,
+    ) -> Result<T, ClientError>
+    where
+        T: DeserializeOwned,
+        B: Serialize,
+    {
+        self.request(url, token, reqwest::Method::POST, body).await
+    }
+
+    pub(crate) async fn put<T, B>(
+        &self,
+        url: url::Url,
+        token: String,
+        body: B,
+    ) -> Result<T, ClientError>
+    where
+        T: DeserializeOwned,
+        B: Serialize,
+    {
+        self.request(url, token, reqwest::Method::PUT, body).await
+    }
+
+    pub(crate) async fn get<T: DeserializeOwned>(
+        &self,
+        url: url::Url,
+        token: String,
+    ) -> Result<T, ClientError> {
         let json = self
             .http_client
             .get(url)
             .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
+            .header(AUTHORIZATION, format!("Bearer {:}", token))
             .header(ACCEPT, "application/json")
             .send()
             .await?
-            .json::<Value>()
+            .json()
             .await?;
 
+        self.json_to_oauth2_result(json)
+    }
+
+    pub(crate) async fn delete(&self, url: url::Url, token: String) -> Result<(), ClientError> {
+        let json = self
+            .http_client
+            .delete(url)
+            .header(AUTHORIZATION, format!("Bearer {:}", token))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
+
+        if let Ok(error) = error {
+            Err(ClientError::from(error))
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn request<T, B>(
+        &self,
+        url: url::Url,
+        token: String,
+        method: reqwest::Method,
+        body: B,
+    ) -> Result<T, ClientError>
+    where
+        T: DeserializeOwned,
+        B: Serialize,
+    {
+        let json = self
+            .http_client
+            .request(method, url)
+            .header(CONTENT_TYPE, "application/json")
+            .header(AUTHORIZATION, format!("Bearer {:}", token))
+            .header(ACCEPT, "application/json")
+            .json(&body)
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        self.json_to_oauth2_result(json)
+    }
+
+    fn json_to_oauth2_result<T: DeserializeOwned>(&self, json: Value) -> Result<T, ClientError> {
         let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
         if let Ok(error) = error {
             Err(ClientError::from(error))
         } else {
-            let resources: Vec<String> = serde_json::from_value(json)?;
-            Ok(resources)
+            Ok(serde_json::from_value(json)?)
         }
+    }
+
+    fn asserted_uma2_resource_url(&self) -> Result<url::Url, ClientError> {
+        if !self.provider.uma2_discovered() {
+            return Err(ClientError::Uma2(NoUma2Discovered));
+        }
+
+        self.provider
+            .resource_registration_uri()
+            .cloned()
+            .ok_or(ClientError::Uma2(NoResourceSetEndpoint))
+    }
+
+    fn asserted_uma2_resource_url_id(&self, id: &str) -> Result<url::Url, ClientError> {
+        let mut url = self.asserted_uma2_resource_url()?;
+
+        url.path_segments_mut()
+            .map_err(|_| ClientError::Uma2(ResourceSetEndpointMalformed))?
+            .extend(&[id]);
+
+        Ok(url)
     }
 }

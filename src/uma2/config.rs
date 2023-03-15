@@ -1,6 +1,7 @@
-use crate::Config;
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use crate::Config;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Uma2Config {

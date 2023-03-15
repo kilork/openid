@@ -3,6 +3,7 @@ use crate::{
     uma2::{Uma2Config, Uma2Provider},
     Claims, Client, Config, Configurable, Provider,
 };
+
 use biscuit::CompactJson;
 use url::Url;
 
@@ -53,7 +54,7 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
     pub async fn discover_uma2(
         id: String,
         secret: String,
-        redirect: Option<String>,
+        redirect: impl Into<Option<String>>,
         issuer: Url,
     ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
@@ -67,7 +68,7 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
             provider,
             id,
             secret,
-            redirect,
+            redirect.into(),
             http_client,
             Some(jwks),
         ))
