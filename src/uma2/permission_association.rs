@@ -1,11 +1,11 @@
-use crate::error::ClientError;
-use crate::uma2::error::Uma2Error::*;
-use crate::uma2::Uma2Provider;
-use crate::{Claims, Client, OAuth2Error, Provider};
+use crate::{
+    error::ClientError,
+    uma2::{error::Uma2Error::*, Uma2Provider},
+    Claims, Client, Provider,
+};
+
 use biscuit::CompactJson;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -72,6 +72,7 @@ where
     ///         - Consensus: In this case, the number of positive decisions must be greater than
     ///             the number of negative decisions. If the number of positive and negative
     ///             decisions is the same, the final decision will be negative
+    #[allow(clippy::too_many_arguments)]
     pub async fn associate_uma2_resource_with_a_permission(
         &self,
         token: String,
@@ -79,59 +80,30 @@ where
         name: String,
         description: String,
         scopes: Vec<String>,
-        roles: Option<Vec<String>>,
-        groups: Option<Vec<String>>,
-        clients: Option<Vec<String>>,
-        owner: Option<String>,
-        logic: Option<Uma2PermissionLogic>,
-        decision_strategy: Option<Uma2PermissionDecisionStrategy>,
+        roles: impl Into<Option<Vec<String>>>,
+        groups: impl Into<Option<Vec<String>>>,
+        clients: impl Into<Option<Vec<String>>>,
+        owner: impl Into<Option<String>>,
+        logic: impl Into<Option<Uma2PermissionLogic>>,
+        decision_strategy: impl Into<Option<Uma2PermissionDecisionStrategy>>,
     ) -> Result<Uma2PermissionAssociation, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
-
-        if self.provider.uma_policy_uri().is_none() {
-            return Err(ClientError::Uma2(NoPolicyAssociationEndpoint));
-        }
-        let mut url = self.provider.uma_policy_uri().unwrap().clone();
-        url.path_segments_mut()
-            .map_err(|_| ClientError::Uma2(PolicyAssociationEndpointMalformed))?
-            .extend(&[resource_id]);
+        let url = self.asserted_uma2_policy_url_id(&resource_id)?;
 
         let permission = Uma2PermissionAssociation {
             id: None,
             name,
             description,
             scopes,
-            roles,
-            groups,
-            clients,
-            owner,
+            roles: roles.into(),
+            groups: groups.into(),
+            clients: clients.into(),
+            owner: owner.into(),
             permission_type: None,
-            logic,
-            decision_strategy,
+            logic: logic.into(),
+            decision_strategy: decision_strategy.into(),
         };
 
-        let json = self
-            .http_client
-            .post(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", token))
-            .header(ACCEPT, "application/json")
-            .json(&permission)
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let association: Uma2PermissionAssociation = serde_json::from_value(json)?;
-            Ok(association)
-        }
+        self.post(url, token, permission).await
     }
 
     /// Update a UMA2 resource's associated permission
@@ -162,6 +134,7 @@ where
     ///         - Consensus: In this case, the number of positive decisions must be greater than
     ///             the number of negative decisions. If the number of positive and negative
     ///             decisions is the same, the final decision will be negative
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_uma2_resource_permission(
         &self,
         id: String,
@@ -169,59 +142,30 @@ where
         name: String,
         description: String,
         scopes: Vec<String>,
-        roles: Option<Vec<String>>,
-        groups: Option<Vec<String>>,
-        clients: Option<Vec<String>>,
-        owner: Option<String>,
-        logic: Option<Uma2PermissionLogic>,
-        decision_strategy: Option<Uma2PermissionDecisionStrategy>,
+        roles: impl Into<Option<Vec<String>>>,
+        groups: impl Into<Option<Vec<String>>>,
+        clients: impl Into<Option<Vec<String>>>,
+        owner: impl Into<Option<String>>,
+        logic: impl Into<Option<Uma2PermissionLogic>>,
+        decision_strategy: impl Into<Option<Uma2PermissionDecisionStrategy>>,
     ) -> Result<Uma2PermissionAssociation, ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
-
-        if self.provider.uma_policy_uri().is_none() {
-            return Err(ClientError::Uma2(NoPolicyAssociationEndpoint));
-        }
-
-        let mut url = self.provider.uma_policy_uri().unwrap().clone();
-        url.path_segments_mut()
-            .map_err(|_| ClientError::Uma2(PolicyAssociationEndpointMalformed))?
-            .extend(&[&id]);
+        let url = self.asserted_uma2_policy_url_id(&id)?;
 
         let permission = Uma2PermissionAssociation {
             id: Some(id),
             name,
             description,
             scopes,
-            roles,
-            groups,
-            clients,
-            owner,
+            roles: roles.into(),
+            groups: groups.into(),
+            clients: clients.into(),
+            owner: owner.into(),
             permission_type: Some("uma".to_string()),
-            logic,
-            decision_strategy,
+            logic: logic.into(),
+            decision_strategy: decision_strategy.into(),
         };
 
-        let json = self
-            .http_client
-            .put(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", token))
-            .json(&permission)
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let association: Uma2PermissionAssociation = serde_json::from_value(json)?;
-            Ok(association)
-        }
+        self.put(url, token, permission).await
     }
 
     /// Delete a UMA2 resource's permission
@@ -239,36 +183,9 @@ where
         id: String,
         token: String,
     ) -> Result<(), ClientError> {
-        if !self.provider.uma2_discovered() {
-            return Err(ClientError::Uma2(NoUma2Discovered));
-        }
+        let url = self.asserted_uma2_policy_url_id(&id)?;
 
-        if self.provider.uma_policy_uri().is_none() {
-            return Err(ClientError::Uma2(NoPolicyAssociationEndpoint));
-        }
-
-        let mut url = self.provider.uma_policy_uri().unwrap().clone();
-        url.path_segments_mut()
-            .map_err(|_| ClientError::Uma2(PolicyAssociationEndpointMalformed))?
-            .extend(&[&id]);
-
-        let json = self
-            .http_client
-            .delete(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", token))
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json);
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            Ok(())
-        }
+        self.delete(url, token).await
     }
 
     /// Search for UMA2 resource associated permissions
@@ -288,57 +205,51 @@ where
     pub async fn search_for_uma2_resource_permission(
         &self,
         token: String,
-        resource: Option<String>,
-        name: Option<String>,
-        scope: Option<String>,
-        offset: Option<u32>,
-        count: Option<u32>,
+        resource: impl Into<Option<String>>,
+        name: impl Into<Option<String>>,
+        scope: impl Into<Option<String>>,
+        offset: impl Into<Option<u32>>,
+        count: impl Into<Option<u32>>,
     ) -> Result<Vec<Uma2PermissionAssociation>, ClientError> {
+        let mut url = self.asserted_uma2_policy_url()?;
+        {
+            let mut query = url.query_pairs_mut();
+            if let Some(resource) = resource.into().as_deref() {
+                query.append_pair("resource", resource);
+            }
+            if let Some(name) = name.into().as_deref() {
+                query.append_pair("name", name);
+            }
+            if let Some(scope) = scope.into().as_deref() {
+                query.append_pair("scope", scope);
+            }
+            if let Some(offset) = offset.into() {
+                query.append_pair("first", &format!("{offset}"));
+            }
+            if let Some(count) = count.into() {
+                query.append_pair("max", &format!("{count}"));
+            }
+        }
+
+        self.get(url, token).await
+    }
+
+    fn asserted_uma2_policy_url(&self) -> Result<url::Url, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
 
-        if self.provider.uma_policy_uri().is_none() {
-            return Err(ClientError::Uma2(NoPolicyAssociationEndpoint));
-        }
+        self.provider
+            .uma_policy_uri()
+            .cloned()
+            .ok_or(ClientError::Uma2(NoPolicyAssociationEndpoint))
+    }
 
-        let mut url = self.provider.uma_policy_uri().unwrap().clone();
-        {
-            let mut query = url.query_pairs_mut();
-            if resource.is_some() {
-                query.append_pair("resource", resource.unwrap().as_str());
-            }
-            if name.is_some() {
-                query.append_pair("name", name.unwrap().as_str());
-            }
-            if scope.is_some() {
-                query.append_pair("scope", scope.unwrap().as_str());
-            }
-            if offset.is_some() {
-                query.append_pair("first", format!("{}", offset.unwrap()).as_str());
-            }
-            if count.is_some() {
-                query.append_pair("max", format!("{}", count.unwrap()).as_str());
-            }
-        }
-
-        let json = self
-            .http_client
-            .get(url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, format!("Bearer {:}", token))
-            .send()
-            .await?
-            .json::<Value>()
-            .await?;
-
-        let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
-
-        if let Ok(error) = error {
-            Err(ClientError::from(error))
-        } else {
-            let resource: Vec<Uma2PermissionAssociation> = serde_json::from_value(json)?;
-            Ok(resource)
-        }
+    fn asserted_uma2_policy_url_id(&self, id: &str) -> Result<url::Url, ClientError> {
+        let mut url = self.asserted_uma2_policy_url()?;
+        url.path_segments_mut()
+            .map_err(|_| ClientError::Uma2(PolicyAssociationEndpointMalformed))?
+            .extend(&[id]);
+        Ok(url)
     }
 }

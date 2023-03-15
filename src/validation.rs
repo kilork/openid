@@ -15,8 +15,11 @@ pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(
     Ok(())
 }
 
-pub fn validate_token_nonce<C: Claims>(claims: &C, nonce: Option<&str>) -> Result<(), Error> {
-    if let Some(expected) = nonce {
+pub fn validate_token_nonce<'nonce, C: Claims>(
+    claims: &C,
+    nonce: impl Into<Option<&'nonce str>>,
+) -> Result<(), Error> {
+    if let Some(expected) = nonce.into() {
         match claims.nonce() {
             Some(actual) => {
                 if expected != actual {
@@ -56,7 +59,10 @@ pub fn validate_token_aud<C: Claims>(claims: &C, client_id: &str) -> Result<(), 
     Ok(())
 }
 
-pub fn validate_token_exp<C: Claims>(claims: &C, max_age: Option<&Duration>) -> Result<(), Error> {
+pub fn validate_token_exp<'max_age, C: Claims>(
+    claims: &C,
+    max_age: impl Into<Option<&'max_age Duration>>,
+) -> Result<(), Error> {
     let now = Utc::now();
     // Now should never be less than the time this code was written!
     if now.timestamp() < 1504758600 {
@@ -72,7 +78,7 @@ pub fn validate_token_exp<C: Claims>(claims: &C, max_age: Option<&Duration>) -> 
         .into());
     }
 
-    if let Some(max) = max_age {
+    if let Some(max) = max_age.into() {
         match claims.auth_time() {
             Some(time) => {
                 let age = chrono::Duration::seconds(now.timestamp() - time);

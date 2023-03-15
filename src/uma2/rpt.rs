@@ -1,8 +1,9 @@
-use crate::error::ClientError;
-use crate::uma2::error::Uma2Error::*;
-use crate::uma2::permission_ticket::Uma2PermissionTicketRequest;
-use crate::uma2::*;
-use crate::{Bearer, Claims, Client, OAuth2Error, Provider};
+use crate::{
+    error::ClientError,
+    uma2::{error::Uma2Error::*, permission_ticket::Uma2PermissionTicketRequest, *},
+    Bearer, Claims, Client, OAuth2Error, Provider,
+};
+
 use biscuit::CompactJson;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde_json::Value;
@@ -46,84 +47,88 @@ where
     /// * `submit_request` A boolean value indicating whether the server should create permission
     ///     requests to the resources and scopes referenced by a permission ticket. This parameter
     ///     only have effect if used together with the ticket parameter as part of a UMA authorization process
+    #[allow(clippy::too_many_arguments)]
     pub async fn obtain_requesting_party_token(
         &self,
         token: String,
         auth_method: Uma2AuthenticationMethod,
-        ticket: Option<String>,
-        claim_token: Option<String>,
-        claim_token_format: Option<Uma2ClaimTokenFormat>,
-        rpt: Option<String>,
-        permission: Option<Vec<String>>,
-        audience: Option<String>,
-        response_include_resource_name: Option<bool>,
-        response_permissions_limit: Option<u32>,
-        submit_request: Option<bool>,
+        ticket: impl Into<Option<String>>,
+        claim_token: impl Into<Option<String>>,
+        claim_token_format: impl Into<Option<Uma2ClaimTokenFormat>>,
+        rpt: impl Into<Option<String>>,
+        permission: impl Into<Option<Vec<String>>>,
+        audience: impl Into<Option<String>>,
+        response_include_resource_name: impl Into<Option<bool>>,
+        response_permissions_limit: impl Into<Option<u32>>,
+        submit_request: impl Into<Option<bool>>,
     ) -> Result<String, ClientError> {
         if !self.provider.uma2_discovered() {
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
 
+        let permission = permission.into();
+        let audience = audience.into();
         if let Some(p) = permission.as_ref() {
             if p.is_empty() && audience.is_none() {
                 return Err(ClientError::Uma2(AudienceFieldRequired));
             }
         }
 
-        let mut body = Serializer::new(String::new());
-        body.append_pair("grant_type", "urn:ietf:params:oauth:grant-type:uma-ticket");
-        if ticket.is_some() {
-            body.append_pair("ticket", ticket.unwrap().as_str());
-        }
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("grant_type", "urn:ietf:params:oauth:grant-type:uma-ticket");
+            if let Some(ticket) = ticket.into() {
+                body.append_pair("ticket", &ticket);
+            }
 
-        if claim_token.is_some() {
-            body.append_pair("claim_token", claim_token.unwrap().as_str());
-        }
+            if let Some(claim_token) = claim_token.into() {
+                body.append_pair("claim_token", &claim_token);
+            }
 
-        if claim_token_format.is_some() {
-            body.append_pair(
-                "claim_token_format",
-                claim_token_format.map(|b| b.to_string()).unwrap().as_str(),
-            );
-        }
+            if let Some(claim_token_format) = claim_token_format.into() {
+                body.append_pair(
+                    "claim_token_format",
+                    claim_token_format.to_string().as_str(),
+                );
+            }
 
-        if rpt.is_some() {
-            body.append_pair("rpt", rpt.unwrap().as_str());
-        }
+            if let Some(rpt) = rpt.into() {
+                body.append_pair("rpt", &rpt);
+            }
 
-        if permission.is_some() {
-            permission.unwrap().iter().for_each(|perm| {
-                body.append_pair("permission", perm.as_str());
-            });
-        }
+            if let Some(permission) = permission {
+                permission.iter().for_each(|perm| {
+                    body.append_pair("permission", perm.as_str());
+                });
+            }
 
-        if audience.is_some() {
-            body.append_pair("audience", audience.unwrap().as_str());
-        }
+            if let Some(audience) = audience {
+                body.append_pair("audience", &audience);
+            }
 
-        if response_include_resource_name.is_some() {
-            body.append_pair(
-                "response_include_resource_name",
-                response_include_resource_name
-                    .map(|b| if b { "true" } else { "false" })
-                    .unwrap(),
-            );
-        }
-        if response_permissions_limit.is_some() {
-            body.append_pair(
-                "response_permissions_limit",
-                format!("{:}", response_permissions_limit.unwrap()).as_str(),
-            );
-        }
+            if let Some(response_include_resource_name) = response_include_resource_name.into() {
+                body.append_pair(
+                    "response_include_resource_name",
+                    if response_include_resource_name {
+                        "true"
+                    } else {
+                        "false"
+                    },
+                );
+            }
+            if let Some(response_permissions_limit) = response_permissions_limit.into() {
+                body.append_pair(
+                    "response_permissions_limit",
+                    format!("{:}", response_permissions_limit).as_str(),
+                );
+            }
 
-        if submit_request.is_some() {
-            body.append_pair(
-                "submit_request",
-                format!("{:}", submit_request.unwrap()).as_str(),
-            );
-        }
+            if let Some(submit_request) = submit_request.into() {
+                body.append_pair("submit_request", format!("{:}", submit_request).as_str());
+            }
 
-        let body = body.finish();
+            body.finish()
+        };
         let auth_method = match auth_method {
             Uma2AuthenticationMethod::Basic => format!("Basic {:}", token),
             Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token),
@@ -172,10 +177,9 @@ where
             return Err(ClientError::Uma2(NoUma2Discovered));
         }
 
-        if self.provider.permission_uri().is_none() {
+        let Some(url) = self.provider.permission_uri().cloned() else {
             return Err(ClientError::Uma2(NoPermissionsEndpoint));
-        }
-        let url = self.provider.permission_uri().unwrap().clone();
+        };
 
         let json = self
             .http_client
