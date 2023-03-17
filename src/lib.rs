@@ -354,6 +354,7 @@ mod options;
 mod prompt;
 pub mod provider;
 mod standard_claims;
+mod standard_claims_subject;
 mod token;
 mod userinfo;
 pub mod validation;
@@ -380,6 +381,7 @@ pub use options::Options;
 pub use prompt::Prompt;
 pub use provider::Provider;
 pub use standard_claims::StandardClaims;
+pub use standard_claims_subject::StandardClaimsSubject;
 pub use token::Token;
 pub use userinfo::Userinfo;
 

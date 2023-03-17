@@ -249,7 +249,13 @@ pub enum Userinfo {
     NoUrl,
     #[error("Token and Userinfo Subjects mismatch: '{expected}', '{actual}'")]
     MismatchSubject { expected: String, actual: String },
+    #[error(transparent)]
+    MissingSubject(#[from] StandardClaimsSubjectMissing),
 }
+
+#[derive(Debug, Error)]
+#[error("The sub (subject) Claim MUST always be returned in the UserInfo Response")]
+pub struct StandardClaimsSubjectMissing;
 
 #[cfg(test)]
 mod tests {

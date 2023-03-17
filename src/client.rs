@@ -1,6 +1,7 @@
 use crate::{
     discovered,
     error::{ClientError, Decode, Error, Jose, Userinfo as ErrorUserinfo},
+    standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
     },
@@ -295,35 +296,61 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     }
 
     /// Get a userinfo json document for a given token at the provider's userinfo endpoint.
+    /// Returns [Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims) as [Userinfo] struct.
+    ///
     /// Errors are:
     ///
-    /// - Userinfo::NoUrl if this provider doesn't have a userinfo endpoint
-    /// - Error::Insecure if the userinfo url is not https
-    /// - Error::Jose if the token is not decoded
-    /// - Error::Http if something goes wrong getting the document
-    /// - Error::Json if the response is not a valid Userinfo document
-    /// - Userinfo::MismatchSubject if the returned userinfo document and tokens subject mismatch
+    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo endpoint
+    /// - [Error::Insecure] if the userinfo url is not https
+    /// - [Error::Jose] if the token is not decoded
+    /// - [Error::Http] if something goes wrong getting the document
+    /// - [Error::Json] if the response is not a valid Userinfo document
+    /// - [ErrorUserinfo::MissingSubject] if subject (sub) is missing
+    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and tokens subject mismatch
     pub async fn request_userinfo(&self, token: &Token<C>) -> Result<Userinfo, Error> {
+        self.request_userinfo_custom(token).await
+    }
+
+    /// Get a userinfo json document for a given token at the provider's userinfo endpoint.
+    /// Returns [UserInfo Response](https://openid.net/specs/openid-connect-basic-1_0.html#UserInfoResponse)
+    /// including non-standard claims. The sub (subject) Claim MUST always be returned in the UserInfo Response.
+    ///
+    /// Errors are:
+    ///
+    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo endpoint
+    /// - [Error::Insecure] if the userinfo url is not https
+    /// - [Error::Jose] if the token is not decoded
+    /// - [Error::Http] if something goes wrong getting the document
+    /// - [Error::Json] if the response is not a valid Userinfo document
+    /// - [ErrorUserinfo::MissingSubject] if subject (sub) is missing
+    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and tokens subject mismatch
+    pub async fn request_userinfo_custom<D>(&self, token: &Token<C>) -> Result<D, Error>
+    where
+        D: StandardClaimsSubject + serde::de::DeserializeOwned + ?Sized,
+    {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
-                let claims = token.id_token.as_ref().map(|x| x.payload()).transpose()?;
                 let auth_code = token.bearer.access_token.to_string();
-                let resp = self
+
+                let info: D = self
                     .http_client
                     .get(url.clone())
                     .bearer_auth(auth_code)
                     .send()
+                    .await?
+                    .json()
                     .await?;
-                let info: Userinfo = resp.json().await?;
+
+                let claims = token.id_token.as_ref().map(|x| x.payload()).transpose()?;
                 if let Some(claims) = claims {
-                    if let Some(info_sub) = &info.sub {
-                        if claims.sub() != info_sub {
-                            let expected = info_sub.clone();
-                            let actual = claims.sub().to_string();
-                            return Err(ErrorUserinfo::MismatchSubject { expected, actual }.into());
-                        }
+                    let info_sub = info.sub().map_err(ErrorUserinfo::from)?;
+                    if claims.sub() != info_sub {
+                        let expected = info_sub.to_string();
+                        let actual = claims.sub().to_string();
+                        return Err(ErrorUserinfo::MismatchSubject { expected, actual }.into());
                     }
                 }
+
                 Ok(info)
             }
             None => Err(ErrorUserinfo::NoUrl.into()),
