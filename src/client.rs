@@ -324,15 +324,15 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// - [Error::Json] if the response is not a valid Userinfo document
     /// - [ErrorUserinfo::MissingSubject] if subject (sub) is missing
     /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and tokens subject mismatch
-    pub async fn request_userinfo_custom<D>(&self, token: &Token<C>) -> Result<D, Error>
+    pub async fn request_userinfo_custom<U>(&self, token: &Token<C>) -> Result<U, Error>
     where
-        D: StandardClaimsSubject + serde::de::DeserializeOwned + ?Sized,
+        U: StandardClaimsSubject + serde::de::DeserializeOwned,
     {
         match self.config().userinfo_endpoint {
             Some(ref url) => {
                 let auth_code = token.bearer.access_token.to_string();
 
-                let info: D = self
+                let info: U = self
                     .http_client
                     .get(url.clone())
                     .bearer_auth(auth_code)
