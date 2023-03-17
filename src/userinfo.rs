@@ -1,5 +1,5 @@
-use crate::deserializers::bool_from_str_or_bool;
-use crate::Address;
+use crate::{deserializers::bool_from_str_or_bool, Address, StandardClaimsSubject};
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -75,4 +75,12 @@ pub struct Userinfo {
     #[serde(default)]
     /// Time the End-User's information was last updated. Its value is a JSON number representing the number of seconds from 1970-01-01T0:0:0Z as measured in UTC until the date/time.
     pub updated_at: Option<i64>,
+}
+
+impl StandardClaimsSubject for Userinfo {
+    fn sub(&self) -> Result<&str, crate::error::StandardClaimsSubjectMissing> {
+        self.sub
+            .as_deref()
+            .ok_or(crate::error::StandardClaimsSubjectMissing)
+    }
 }
