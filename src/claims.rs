@@ -1,4 +1,5 @@
 use crate::Userinfo;
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use biscuit::SingleOrMultiple;
 use url::Url;
 
@@ -38,7 +39,7 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the access token hash using alg's hash alg
     fn at_hash_to_vec(&self) -> Option<Vec<u8>> {
-        base64::decode_config(self.at_hash()?, base64::URL_SAFE).ok()
+        URL_SAFE.decode(self.at_hash()?).ok()
     }
     /// Decodes c_hash. Returns None if it doesn't exist or something goes wrong.
     ///
@@ -46,6 +47,6 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the code hash using alg's hash alg
     fn c_hash_to_vec(&self) -> Option<Vec<u8>> {
-        base64::decode_config(self.c_hash()?, base64::URL_SAFE).ok()
+        URL_SAFE.decode(self.c_hash()?).ok()
     }
 }

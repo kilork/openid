@@ -1,6 +1,6 @@
 [package]
 name = "openid"
-version = "0.11.1"
+version = "0.12.0"
 authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
 edition = "2021"
 categories = ["authentication"]
@@ -24,10 +24,10 @@ rustls = ["reqwest/rustls-tls"]
 [dependencies]
 lazy_static = "1.4"
 serde_json = { version = "1", default-features = false }
-base64 = "0.13"
+base64 = "0.21"
 biscuit = "0.6"
 thiserror = "1"
-validator = { version = "0.15", features = ["derive"] }
+validator = { version = "0.16", features = ["derive"] }
 mime = "0.3"
 
 [dependencies.url]
