@@ -1,6 +1,6 @@
 use crate::error::StandardClaimsSubjectMissing;
 
-pub trait StandardClaimsSubject {
+pub trait StandardClaimsSubject: crate::CompactJson {
     /// Subject - Identifier for the End-User at the Issuer.
     ///
     /// See [Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)

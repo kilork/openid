@@ -6,7 +6,6 @@ use url::Url;
 use validator::Validate;
 
 /// The userinfo struct contains all possible userinfo fields regardless of scope. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
-// TODO is there a way to use claims_supported in config to simplify this struct?
 #[derive(Debug, Deserialize, Serialize, Validate, Clone, Eq, PartialEq)]
 pub struct Userinfo {
     #[serde(default)]
@@ -84,3 +83,5 @@ impl StandardClaimsSubject for Userinfo {
             .ok_or(crate::error::StandardClaimsSubjectMissing)
     }
 }
+
+impl biscuit::CompactJson for Userinfo {}
