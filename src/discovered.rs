@@ -35,13 +35,13 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "openid-configuration"]);
 
-    let resp = client.get(issuer).send().await?;
+    let resp = client.get(issuer).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)
 }
 
 /// Get the JWK set from the given Url. Errors are either a reqwest error or an Insecure error if
 /// the url isn't https.
 pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
-    let resp = client.get(url).send().await?;
+    let resp = client.get(url).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)
 }

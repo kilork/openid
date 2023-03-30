@@ -247,6 +247,12 @@ pub enum Expiry {
 pub enum Userinfo {
     #[error("Config has no userinfo url")]
     NoUrl,
+    #[error("The UserInfo Endpoint MUST return a content-type header to indicate which format is being returned")]
+    MissingContentType,
+    #[error("Not parsable content type header: {content_type}")]
+    ParseContentType { content_type: String },
+    #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json, application/jwt")]
+    WrongContentType { content_type: String, body: Vec<u8> },
     #[error("Token and Userinfo Subjects mismatch: '{expected}', '{actual}'")]
     MismatchSubject { expected: String, actual: String },
     #[error(transparent)]
