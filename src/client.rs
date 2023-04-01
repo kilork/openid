@@ -18,7 +18,7 @@ use biscuit::{
 use chrono::Duration;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde_json::Value;
-use std::marker::PhantomData;
+use std::{borrow::Cow, marker::PhantomData};
 use url::{form_urlencoded::Serializer, Url};
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
@@ -124,16 +124,16 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// them as needed. Keep the Options struct around for authentication, or at least the nonce
     /// and max_age parameter - we need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
-        let scope = match options.scope {
-            Some(ref scope) => {
+        let scope = match options.scope.as_deref() {
+            Some(scope) => {
                 if !scope.contains("openid") {
-                    String::from("openid ") + scope
+                    Cow::Owned(String::from("openid ") + scope)
                 } else {
-                    scope.clone()
+                    Cow::Borrowed(scope)
                 }
             }
             // Default scope value
-            None => String::from("openid"),
+            None => Cow::Borrowed("openid"),
         };
 
         let mut url = self.auth_uri(&*scope, options.state.as_deref());
