@@ -237,33 +237,29 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         }
 
         let alg = header.registered.algorithm;
-        match key.algorithm {
+        let secret = match key.algorithm {
             // HMAC
             AlgorithmParameters::OctetKey(ref parameters) => match alg {
                 SignatureAlgorithm::HS256
                 | SignatureAlgorithm::HS384
                 | SignatureAlgorithm::HS512 => {
-                    *token = token.decode(&Secret::Bytes(parameters.value.clone()), alg)?;
-                    Ok(())
+                    Ok::<_, Error>(Secret::Bytes(parameters.value.clone()))
                 }
                 _ => wrong_key!("HS256 | HS384 | HS512", alg),
             },
             AlgorithmParameters::RSA(ref params) => match alg {
                 SignatureAlgorithm::RS256
                 | SignatureAlgorithm::RS384
-                | SignatureAlgorithm::RS512 => {
-                    let pkcs = Secret::RSAModulusExponent {
-                        n: params.n.clone(),
-                        e: params.e.clone(),
-                    };
-                    *token = token.decode(&pkcs, alg)?;
-                    Ok(())
-                }
+                | SignatureAlgorithm::RS512 => Ok(params.jws_public_key_secret()),
                 _ => wrong_key!("RS256 | RS384 | RS512", alg),
             },
             AlgorithmParameters::EllipticCurve(_) => Err(Decode::UnsupportedEllipticCurve.into()),
             AlgorithmParameters::OctetKeyPair(_) => Err(Decode::UnsupportedOctetKeyPair.into()),
-        }
+        }?;
+
+        *token = token.decode(&secret, alg)?;
+
+        Ok(())
     }
 
     /// Validate a decoded token. If you don't get an error, its valid! Nonce and max_age come from
