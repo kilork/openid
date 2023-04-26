@@ -13,7 +13,7 @@ Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-
 
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
-This library is a quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. Basic idea was to solve particular task, as result most of good ideas from original crates were perverted and over-simplified.
+This library is a quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. The basic idea was to solve a specific problem, with the result that most of the good ideas from the original boxes were perverted and oversimplified.
 
 Using [reqwest](https://crates.io/crates/reqwest) for the HTTP client and [biscuit](https://crates.io/crates/biscuit) for Javascript Object Signing and Encryption (JOSE).
 
