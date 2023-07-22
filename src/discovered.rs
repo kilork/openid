@@ -1,7 +1,7 @@
 use crate::{error::Error, Config, Configurable, Provider};
 use biscuit::jwk::JWKSet;
 use biscuit::Empty;
-use reqwest::Client;
+use reqwest_maybe_middleware::Client;
 use url::Url;
 
 #[derive(Debug, Clone)]

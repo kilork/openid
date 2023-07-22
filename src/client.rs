@@ -17,6 +17,7 @@ use biscuit::{
 };
 use chrono::Duration;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use reqwest_maybe_middleware::Client as HttpClient;
 use serde_json::Value;
 use std::{borrow::Cow, marker::PhantomData};
 use url::{form_urlencoded::Serializer, Url};
@@ -36,7 +37,7 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// Redirect URI.
     pub redirect_uri: Option<String>,
 
-    pub http_client: reqwest::Client,
+    pub http_client: HttpClient,
 
     pub jwks: Option<JWKSet<Empty>>,
     marker: PhantomData<C>,
@@ -85,12 +86,13 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 
     /// Constructs a client from an issuer url and client parameters via discovery
     pub async fn discover_with_client(
-        http_client: reqwest::Client,
+        http_client: impl Into<HttpClient>,
         id: String,
         secret: impl Into<Option<String>>,
         redirect: impl Into<Option<String>>,
         issuer: Url,
     ) -> Result<Self, Error> {
+        let http_client = http_client.into();
         let config = discovered::discover(&http_client, issuer).await?;
         let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
 
@@ -460,7 +462,7 @@ where
         client_id: String,
         client_secret: impl Into<Option<String>>,
         redirect_uri: impl Into<Option<String>>,
-        http_client: reqwest::Client,
+        http_client: impl Into<HttpClient>,
         jwks: Option<JWKSet<Empty>>,
     ) -> Self {
         Client {
@@ -468,7 +470,7 @@ where
             client_id,
             client_secret: client_secret.into(),
             redirect_uri: redirect_uri.into(),
-            http_client,
+            http_client: http_client.into(),
             jwks,
             marker: PhantomData,
         }

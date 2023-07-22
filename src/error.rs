@@ -1,6 +1,7 @@
 /*!
 OAuth 2.0 errors.
 */
+use reqwest_maybe_middleware::Error as HttpError;
 use serde::Deserialize;
 use std::{error, fmt};
 
@@ -108,6 +109,9 @@ pub enum ClientError {
     /// UMA2 error.
     #[cfg(feature = "uma2")]
     Uma2(Uma2Error),
+
+    #[cfg(feature = "middleware")]
+    ReqwestMiddleware(reqwest_maybe_middleware::MiddlewareError),
 }
 
 impl fmt::Display for ClientError {
@@ -120,6 +124,8 @@ impl fmt::Display for ClientError {
             ClientError::OAuth2(ref err) => write!(f, "{}", err),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => write!(f, "{}", err),
+            #[cfg(feature = "middleware")]
+            ClientError::ReqwestMiddleware(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -134,6 +140,8 @@ impl std::error::Error for ClientError {
             ClientError::OAuth2(ref err) => Some(err),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => Some(err),
+            #[cfg(feature = "middleware")]
+            ClientError::ReqwestMiddleware(ref err) => Some(err.root_cause()),
         }
     }
 }
@@ -153,6 +161,22 @@ impl_from!(ClientError::Url, url::ParseError);
 impl_from!(ClientError::Reqwest, reqwest::Error);
 impl_from!(ClientError::Json, serde_json::Error);
 impl_from!(ClientError::OAuth2, OAuth2Error);
+
+impl From<HttpError> for ClientError {
+    fn from(value: HttpError) -> Self {
+        match value {
+            HttpError::Reqwest(e) => Self::Reqwest(e),
+            #[cfg(feature = "middleware")]
+            HttpError::Middleware(e) => Self::ReqwestMiddleware(e),
+        }
+    }
+}
+
+impl From<HttpError> for Error {
+    fn from(value: HttpError) -> Self {
+        Error::ClientError(value.into())
+    }
+}
 
 pub use biscuit::errors::Error as Jose;
 pub use reqwest::Error as Http;
