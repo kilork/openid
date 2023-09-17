@@ -1,7 +1,15 @@
 use crate::Userinfo;
-use base64::{engine::general_purpose::URL_SAFE, Engine as _};
+use base64::{
+    alphabet,
+    engine::{GeneralPurpose, GeneralPurposeConfig},
+    Engine as _,
+};
 use biscuit::SingleOrMultiple;
 use url::Url;
+
+const ANYPAD: GeneralPurposeConfig = GeneralPurposeConfig::new()
+    .with_decode_padding_mode(base64::engine::DecodePaddingMode::Indifferent);
+const URL_SAFE_ANYPAD: GeneralPurpose = GeneralPurpose::new(&alphabet::URL_SAFE, ANYPAD);
 
 /// The primary extension that OpenID Connect makes to OAuth 2.0 to enable End-Users to be Authenticated is the ID Token data structure. The ID Token is a security token that contains Claims about the Authentication of an End-User by an Authorization Server when using a Client, and potentially other requested Claims. The ID Token is represented as a JSON Web Token (JWT) [JWT].
 pub trait Claims {
@@ -39,7 +47,7 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the access token hash using alg's hash alg
     fn at_hash_to_vec(&self) -> Option<Vec<u8>> {
-        URL_SAFE.decode(self.at_hash()?).ok()
+        URL_SAFE_ANYPAD.decode(self.at_hash()?).ok()
     }
     /// Decodes c_hash. Returns None if it doesn't exist or something goes wrong.
     ///
@@ -47,6 +55,20 @@ pub trait Claims {
     ///
     /// The returned Vec is the first 128 bits of the code hash using alg's hash alg
     fn c_hash_to_vec(&self) -> Option<Vec<u8>> {
-        URL_SAFE.decode(self.c_hash()?).ok()
+        URL_SAFE_ANYPAD.decode(self.c_hash()?).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_at_hash() {
+        let x = URL_SAFE_ANYPAD.decode("zglPCMCEP7ilF3LP_NExow");
+        let y = URL_SAFE_ANYPAD.decode("zglPCMCEP7ilF3LP_NExow==");
+        assert!(x.is_ok());
+        assert!(y.is_ok());
+        assert_eq!(x, y);
     }
 }
