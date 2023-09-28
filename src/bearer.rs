@@ -1,65 +1,66 @@
-use chrono::{DateTime, Duration, Utc};
-use serde::{de::Visitor, ser::Serializer, Deserialize, Deserializer, Serialize};
-use std::fmt;
+use chrono::{DateTime, Duration, SubsecRound, Utc};
+use serde::{Deserialize, Serialize};
 
 /// The bearer token type.
 ///
 /// See [RFC 6750](http://tools.ietf.org/html/rfc6750).
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(from = "BearerData", into = "BearerData")]
 pub struct Bearer {
     pub access_token: String,
     pub scope: Option<String>,
     pub refresh_token: Option<String>,
-    #[serde(
-        default,
-        rename = "expires_in",
-        deserialize_with = "expire_in_to_instant",
-        serialize_with = "serialize_expire_in"
-    )]
     pub expires: Option<DateTime<Utc>>,
+    pub id_token: Option<String>,
+    pub received_at: DateTime<Utc>,
+}
+
+impl From<BearerData> for Bearer {
+    fn from(data: BearerData) -> Self {
+        Bearer {
+            access_token: data.access_token,
+            scope: data.scope,
+            refresh_token: data.refresh_token,
+            expires: data
+                .expires_in
+                .map(|expiry_duration| data.received_at + Duration::seconds(expiry_duration)),
+            id_token: data.id_token,
+            received_at: data.received_at,
+        }
+    }
+}
+
+impl Into<BearerData> for Bearer {
+    fn into(self) -> BearerData {
+        BearerData {
+            access_token: self.access_token,
+            scope: self.scope,
+            refresh_token: self.refresh_token,
+            expires_in: self
+                .expires
+                .map(|expiration| (expiration - self.received_at).num_seconds()),
+            received_at: self.received_at,
+            id_token: self.id_token,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct BearerData {
+    pub access_token: String,
+    pub scope: Option<String>,
+    pub refresh_token: Option<String>,
+    pub expires_in: Option<i64>,
+    #[serde(default = "now")]
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub received_at: DateTime<Utc>,
     pub id_token: Option<String>,
 }
 
-fn expire_in_to_instant<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct ExpireInVisitor;
-
-    impl<'de> Visitor<'de> for ExpireInVisitor {
-        type Value = Option<DateTime<Utc>>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("an integer containing seconds")
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(None)
-        }
-
-        fn visit_some<D>(self, d: D) -> Result<Option<DateTime<Utc>>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let expire_in: u64 = serde::de::Deserialize::deserialize(d)?;
-            Ok(Some(Utc::now() + Duration::seconds(expire_in as i64)))
-        }
-    }
-
-    deserializer.deserialize_option(ExpireInVisitor)
-}
-
-fn serialize_expire_in<S: Serializer>(
-    dt: &Option<DateTime<Utc>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    match dt {
-        Some(dt) => serializer.serialize_some(&dt.timestamp()),
-        None => serializer.serialize_none(),
-    }
+fn now() -> DateTime<Utc> {
+    // round timestamp to milliseconds,
+    // since this is our precision during serialization of DateTime
+    Utc::now().round_subsecs(3)
 }
 
 impl Bearer {
@@ -108,5 +109,22 @@ mod tests {
         assert_eq!(None, bearer.scope);
         assert_eq!(None, bearer.refresh_token);
         assert_eq!(None, bearer.expires);
+    }
+
+    #[test]
+    fn round_trip() {
+        let json = r#"
+            {
+                "token_type":"Bearer",
+                "access_token":"aaaaaaaa",
+                "expires_in":3600,
+                "refresh_token":"bbbbbbbb"
+            }
+        "#;
+        let bearer: Bearer = serde_json::from_str(json).unwrap();
+        let serialized = serde_json::to_string(&bearer).unwrap();
+        let de_serialized = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(bearer, de_serialized);
     }
 }
