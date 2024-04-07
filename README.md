@@ -12,9 +12,27 @@ Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-
 
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
-This library is a quick and dirty rewrite of [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc) to use async / await. The basic idea was to solve a specific problem, with the result that most of the good ideas from the original boxes were perverted and oversimplified.
+Originally developed as a quick adaptation to leverage async/await functionality, based on [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc), the library has since evolved into a mature and robust solution, offering expanded features and improved performance.
 
 Using [reqwest](https://crates.io/crates/reqwest) for the HTTP client and [biscuit](https://crates.io/crates/biscuit) for Javascript Object Signing and Encryption (JOSE).
+
+## Support:
+
+You can contribute to the ongoing development and maintenance of OpenID library in various ways:
+
+### Sponsorship
+
+Your support, no matter how big or small, helps sustain the project and ensures its continued improvement. Reach out to explore sponsorship opportunities.
+
+### Feedback
+
+Whether you are a developer, user, or enthusiast, your feedback is invaluable. Share your thoughts, suggestions, and ideas to help shape the future of the library.
+
+### Contribution
+
+If you're passionate about open-source and have skills to share, consider contributing to the project. Every contribution counts!
+
+Thank you for being part of OpenID community. Together, we are making authentication processes more accessible, reliable, and efficient for everyone.
 
 ## Usage
 

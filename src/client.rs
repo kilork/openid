@@ -1,4 +1,5 @@
 use crate::{
+    bearer::TemporalBearerGuard,
     discovered,
     error::{ClientError, Decode, Error, Jose, Userinfo as ErrorUserinfo},
     standard_claims_subject::StandardClaimsSubject,
@@ -611,7 +612,7 @@ where
     /// See [RFC 6749, section 6](http://tools.ietf.org/html/rfc6749#section-6).
     pub async fn refresh_token(
         &self,
-        token: Bearer,
+        token: impl AsRef<Bearer>,
         scope: impl Into<Option<&str>>,
     ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
@@ -622,6 +623,7 @@ where
             body.append_pair(
                 "refresh_token",
                 token
+                    .as_ref()
                     .refresh_token
                     .as_deref()
                     .expect("No refresh_token field"),
@@ -637,17 +639,20 @@ where
         let json = self.post_token(body).await?;
         let mut new_token: Bearer = serde_json::from_value(json)?;
         if new_token.refresh_token.is_none() {
-            new_token.refresh_token = token.refresh_token.clone();
+            new_token.refresh_token = token.as_ref().refresh_token.clone();
         }
         Ok(new_token)
     }
 
     /// Ensures an access token is valid by refreshing it if necessary.
-    pub async fn ensure_token(&self, token: Bearer) -> Result<Bearer, ClientError> {
-        if token.expired() {
-            self.refresh_token(token, None).await
+    pub async fn ensure_token(
+        &self,
+        token_guard: TemporalBearerGuard,
+    ) -> Result<TemporalBearerGuard, ClientError> {
+        if token_guard.expired() {
+            self.refresh_token(token_guard, None).await.map(From::from)
         } else {
-            Ok(token)
+            Ok(token_guard)
         }
     }
 
