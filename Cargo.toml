@@ -1,6 +1,6 @@
 [package]
 name = "openid"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
 edition = "2021"
 categories = ["authentication"]

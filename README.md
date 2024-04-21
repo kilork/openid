@@ -40,51 +40,53 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.13"
+openid = "0.14"
 ```
 
-By default it uses native tls, if you want to use `rustls`:
+By default we use native tls, if you want to use `rustls`:
 
 ```toml
 [dependencies]
-openid = { version = "0.13", default-features = false, features = ["rustls"] }
+openid = { version = "0.14", default-features = false, features = ["rustls"] }
 ```
 
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
 
 This example provides only Rust part, assuming just default JHipster frontend settings.
 
-Cargo.toml:
+in Cargo.toml:
 
 ```toml
-[package]
-name = "openid-example"
-version = "0.1.0"
-authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
-edition = "2021"
-
 [dependencies]
 anyhow = "1.0"
-cookie = "0.14"
+cookie = "0.18"
+dotenv = "0.15"
 log = "0.4"
-openid = "0.13"
-pretty_env_logger = "0.4"
-reqwest = "0.11"
-serde = { version = "1", features = [ "derive" ] }
-tokio = { version = "1", features = [ "full" ] }
-uuid = { version = "0.8", features = [ "v4" ] }
-warp = "0.3"
+openid = "0.14"
+pretty_env_logger = "0.5"
+reqwest = "0.12"
+serde = { version = "1", default-features = false, features = [ "derive" ] }
+serde_json = "1"
+tokio = { version = "1", default-features = false, features = [ "rt-multi-thread", "macros" ] }
+uuid = { version = "1.0", default-features = false, features = [ "v4" ] }
+warp = { version = "0.3", default-features = false }
+
+[patch.crates-io]
+openid = { path = "../../openid" }
 ```
 
-src/main.rs:
+in src/main.rs:
 
 ```rust#ignore
-use std::{collections::HashMap, convert::Infallible, env, sync::Arc};
+use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 
+use cookie::time::Duration;
 use log::{error, info};
 use openid::{Client, Discovered, DiscoveredClient, Options, StandardClaims, Token, Userinfo};
-use openid_warp_example::INDEX_HTML;
-use serde::{Deserialize, Serialize};
+use openid_examples::{
+    entity::{LoginQuery, Sessions, User},
+    INDEX_HTML,
+};
 use tokio::sync::RwLock;
 use warp::{
     http::{Response, StatusCode},
@@ -95,53 +97,36 @@ type OpenIDClient = Client<Discovered, StandardClaims>;
 
 const EXAMPLE_COOKIE: &str = "openid_warp_example";
 
-#[derive(Deserialize, Debug)]
-pub struct LoginQuery {
-    pub code: String,
-    pub state: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct User {
-    pub(crate) id: String,
-    pub(crate) login: Option<String>,
-    pub(crate) first_name: Option<String>,
-    pub(crate) last_name: Option<String>,
-    pub(crate) email: Option<String>,
-    pub(crate) image_url: Option<String>,
-    pub(crate) activated: bool,
-    pub(crate) lang_key: Option<String>,
-    pub(crate) authorities: Vec<String>,
-}
-
-#[derive(Default)]
-struct Sessions {
-    map: HashMap<String, (User, Token, Userinfo)>,
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if env::var_os("RUST_LOG").is_none() {
-        // Set `RUST_LOG=openid_warp_example=debug` to see debug logs,
-        // this only shows access logs.
-        env::set_var("RUST_LOG", "openid_warp_example=info");
-    }
+    dotenv::dotenv().ok();
+
     pretty_env_logger::init();
 
-    let client_id = env::var("CLIENT_ID").unwrap_or("<client id>".to_string());
-    let client_secret = env::var("CLIENT_SECRET").unwrap_or("<client secret>".to_string());
-    let issuer_url = env::var("ISSUER").unwrap_or("https://accounts.google.com".to_string());
+    let client_id = env::var("CLIENT_ID").expect("<client id> for your provider");
+    let client_secret = env::var("CLIENT_SECRET").ok();
+    let issuer_url =
+        env::var("ISSUER").unwrap_or_else(|_| "https://accounts.google.com".to_string());
     let redirect = Some(host("/login/oauth2/code/oidc"));
     let issuer = reqwest::Url::parse(&issuer_url)?;
+    let listen: SocketAddr = env::var("LISTEN")
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_string())
+        .parse()?;
 
-    eprintln!("redirect: {:?}", redirect);
-    eprintln!("issuer: {}", issuer);
+    info!("redirect: {:?}", redirect);
+    info!("issuer: {}", issuer);
 
-    let client =
-        Arc::new(DiscoveredClient::discover(client_id, client_secret, redirect, issuer).await?);
+    let client = Arc::new(
+        DiscoveredClient::discover(
+            client_id,
+            client_secret.unwrap_or_default(),
+            redirect,
+            issuer,
+        )
+        .await?,
+    );
 
-    eprintln!("discovered config: {:?}", client.config());
+    info!("discovered config: {:?}", client.config());
 
     let with_client = |client: Arc<Client<_>>| warp::any().map(move || client.clone());
 
@@ -165,6 +150,13 @@ async fn main() -> anyhow::Result<()> {
         .and(with_sessions(sessions.clone()))
         .and_then(reply_login);
 
+    let logout = warp::path!("logout")
+        .and(warp::get())
+        .and(with_client(client.clone()))
+        .and(warp::cookie::optional(EXAMPLE_COOKIE))
+        .and(with_sessions(sessions.clone()))
+        .and_then(reply_logout);
+
     let api_account = warp::path!("api" / "account")
         .and(warp::get())
         .and(with_user(sessions))
@@ -173,25 +165,26 @@ async fn main() -> anyhow::Result<()> {
     let routes = index
         .or(authorize)
         .or(login)
+        .or(logout)
         .or(api_account)
         .recover(handle_rejections);
 
     let logged_routes = routes.with(warp::log("openid_warp_example"));
 
-    warp::serve(logged_routes).run(([127, 0, 0, 1], 8080)).await;
+    warp::serve(logged_routes).run(listen).await;
 
     Ok(())
 }
 
 async fn request_token(
-    oidc_client: Arc<OpenIDClient>,
+    oidc_client: &OpenIDClient,
     login_query: &LoginQuery,
 ) -> anyhow::Result<Option<(Token, Userinfo)>> {
     let mut token: Token = oidc_client.request_token(&login_query.code).await?.into();
 
-    if let Some(mut id_token) = token.id_token.as_mut() {
-        oidc_client.decode_token(&mut id_token)?;
-        oidc_client.validate_token(&id_token, None, None)?;
+    if let Some(id_token) = token.id_token.as_mut() {
+        oidc_client.decode_token(id_token)?;
+        oidc_client.validate_token(id_token, None, None)?;
         info!("token: {:?}", id_token);
     } else {
         return Ok(None);
@@ -209,7 +202,7 @@ async fn reply_login(
     login_query: LoginQuery,
     sessions: Arc<RwLock<Sessions>>,
 ) -> Result<impl warp::Reply, Infallible> {
-    let request_token = request_token(oidc_client, &login_query).await;
+    let request_token = request_token(&oidc_client, &login_query).await;
     match request_token {
         Ok(Some((token, user_info))) => {
             let id = uuid::Uuid::new_v4().to_string();
@@ -229,10 +222,10 @@ async fn reply_login(
                 authorities: vec!["ROLE_USER".to_string()],
             };
 
-            let authorization_cookie = ::cookie::Cookie::build(EXAMPLE_COOKIE, &id)
+            let authorization_cookie = ::cookie::Cookie::build((EXAMPLE_COOKIE, &id))
                 .path("/")
                 .http_only(true)
-                .finish()
+                .build()
                 .to_string();
 
             sessions
@@ -253,24 +246,72 @@ async fn reply_login(
         Ok(None) => {
             error!("login error in call: no id_token found");
 
-            Ok(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body("")
-                .unwrap())
+            response_unauthorized()
         }
         Err(err) => {
             error!("login error in call: {:?}", err);
 
-            Ok(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body("")
-                .unwrap())
+            response_unauthorized()
         }
     }
 }
 
+fn response_unauthorized() -> Result<Response<&'static str>, Infallible> {
+    Ok(Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
+        .body("")
+        .unwrap())
+}
+
+async fn reply_logout(
+    oidc_client: Arc<OpenIDClient>,
+    session_id: Option<String>,
+    sessions: Arc<RwLock<Sessions>>,
+) -> Result<impl warp::Reply, Infallible> {
+    let Some(id) = session_id else {
+        return response_unauthorized();
+    };
+
+    let session_removed = sessions.write().await.map.remove(&id);
+
+    if let Some(id_token) = session_removed.and_then(|(_, token, _)| token.bearer.id_token) {
+        let authorization_cookie = ::cookie::Cookie::build((EXAMPLE_COOKIE, &id))
+            .path("/")
+            .http_only(true)
+            .max_age(Duration::seconds(-1))
+            .build()
+            .to_string();
+
+        let return_redirect_url = host("/");
+
+        let redirect_url = oidc_client
+            .config()
+            .end_session_endpoint
+            .clone()
+            .map(|mut logout_provider_endpoint| {
+                logout_provider_endpoint
+                    .query_pairs_mut()
+                    .append_pair("id_token_hint", &id_token)
+                    .append_pair("post_logout_redirect_uri", &return_redirect_url);
+                logout_provider_endpoint.to_string()
+            })
+            .unwrap_or_else(|| return_redirect_url);
+
+        info!("logout redirect url: {redirect_url}");
+
+        Ok(Response::builder()
+            .status(StatusCode::FOUND)
+            .header(warp::http::header::LOCATION, redirect_url)
+            .header(warp::http::header::SET_COOKIE, authorization_cookie)
+            .body("")
+            .unwrap())
+    } else {
+        response_unauthorized()
+    }
+}
+
 async fn reply_authorize(oidc_client: Arc<OpenIDClient>) -> Result<impl warp::Reply, Infallible> {
-    let origin_url = env::var("ORIGIN").unwrap_or(host(""));
+    let origin_url = env::var("ORIGIN").unwrap_or_else(|_| host(""));
 
     let auth_url = oidc_client.auth_url(&Options {
         scope: Some("openid email profile".into()),
@@ -280,7 +321,7 @@ async fn reply_authorize(oidc_client: Arc<OpenIDClient>) -> Result<impl warp::Re
 
     info!("authorize: {}", auth_url);
 
-    let url = auth_url.into_string();
+    let url: String = auth_url.into();
 
     Ok(warp::reply::with_header(
         StatusCode::FOUND,
@@ -333,8 +374,8 @@ async fn handle_rejections(err: Rejection) -> Result<impl Reply, Infallible> {
 /// For DEV environment with WebPack this is usually something like `http://localhost:9000`.
 /// We are using `http://localhost:8080` in all-in-one example.
 pub fn host(path: &str) -> String {
-    env::var("REDIRECT_URL").unwrap_or("http://localhost:8080".to_string()) + path
+    env::var("REDIRECT_URL").unwrap_or_else(|_| "http://localhost:8080".to_string()) + path
 }
 ```
 
-See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.10/examples/warp.rs)
+See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.14/examples/warp.rs)
