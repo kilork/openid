@@ -236,7 +236,7 @@ pub enum Missing {
 #[derive(Debug, Error)]
 pub enum Expiry {
     #[error("Token expired at: {0}")]
-    Expires(::chrono::naive::NaiveDateTime),
+    Expires(::chrono::DateTime<::chrono::Utc>),
     #[error("Token is too old: {0}")]
     MaxAge(::chrono::Duration),
     #[error("Token exp is not valid UNIX timestamp: {0}")]

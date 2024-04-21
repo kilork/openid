@@ -3,7 +3,7 @@ use crate::{
     Claims, Config,
 };
 use biscuit::SingleOrMultiple;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 
 pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(), Error> {
     if claims.iss() != &config.issuer {
@@ -64,14 +64,10 @@ pub fn validate_token_exp<'max_age, C: Claims>(
     max_age: impl Into<Option<&'max_age Duration>>,
 ) -> Result<(), Error> {
     let now = Utc::now();
-    // Now should never be less than the time this code was written!
-    if now.timestamp() < 1504758600 {
-        panic!("chrono::Utc::now() can never be before this was written!")
-    }
     let exp = claims.exp();
     if exp <= now.timestamp() {
         return Err(Validation::Expired(
-            chrono::naive::NaiveDateTime::from_timestamp_opt(exp, 0)
+            DateTime::from_timestamp(exp, 0)
                 .map(Expiry::Expires)
                 .unwrap_or_else(|| Expiry::NotUnix(exp)),
         )
@@ -81,7 +77,7 @@ pub fn validate_token_exp<'max_age, C: Claims>(
     if let Some(max) = max_age.into() {
         match claims.auth_time() {
             Some(time) => {
-                let age = chrono::Duration::seconds(now.timestamp() - time);
+                let age = Duration::seconds(now.timestamp() - time);
                 if age >= *max {
                     return Err(Validation::Expired(Expiry::MaxAge(age)).into());
                 }
