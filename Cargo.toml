@@ -24,10 +24,10 @@ rustls = ["reqwest/rustls-tls"]
 [dependencies]
 lazy_static = "1.4"
 serde_json = { version = "1", default-features = false }
-base64 = "0.21"
-biscuit = "0.6"
+base64 = "0.22"
+biscuit = "0.7"
 thiserror = "1"
-validator = { version = "0.16", features = ["derive"] }
+validator = { version = "0.18", features = ["derive"] }
 mime = "0.3"
 
 [dependencies.url]
@@ -46,6 +46,6 @@ default-features = false
 features = ["derive"]
 
 [dependencies.reqwest]
-version = "0.11"
+version = "0.12"
 default-features = false
 features = ["json"]
