@@ -12,7 +12,7 @@ keywords = ["authentication", "authorization", "oauth", "openid", "uma2"]
 license = "Unlicense OR MIT"
 readme = "README.md"
 repository = "https://github.com/kilork/openid"
-rust-version = "1.65"
+rust-version = "1.70"
 
 [features]
 default = ["native-tls"]
