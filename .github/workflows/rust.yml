@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@1.65.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -20,6 +21,10 @@ jobs:
     - name: Build with UMA2
       run: cargo build --features uma2
     - name: Run tests with UMA2
+      run: cargo test --verbose --features uma2
+    - name: Build with Microsoft feature
+      run: cargo build --features microsoft
+    - name: Run tests with Microsoft feature
       run: cargo test --verbose --features uma2
     - name: Build with rustls
       run: cargo build --no-default-features --features rustls
