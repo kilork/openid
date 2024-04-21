@@ -70,9 +70,6 @@ serde_json = "1"
 tokio = { version = "1", default-features = false, features = [ "rt-multi-thread", "macros" ] }
 uuid = { version = "1.0", default-features = false, features = [ "v4" ] }
 warp = { version = "0.3", default-features = false }
-
-[patch.crates-io]
-openid = { path = "../../openid" }
 ```
 
 in src/main.rs:

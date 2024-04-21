@@ -56,7 +56,7 @@ This example provides only Rust part, assuming just default JHipster frontend se
 
 in Cargo.toml:
 
-{{ codeblock "toml" ( from "[dependencies]" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/Cargo.toml" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) ) }}
+{{ codeblock "toml" ( to "[patch.crates-io]" ( from "[dependencies]" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/Cargo.toml" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) ) ) }}
 
 in src/main.rs:
 
