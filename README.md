@@ -10,6 +10,8 @@ Implements [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-cor
 
 Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-authz-2.0-09.html) - User Managed Access, an extension to OIDC/OAuth2. Use feature flag `uma2` to enable this feature.
 
+Implements [OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662).
+
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
 Originally developed as a quick adaptation to leverage async/await functionality, based on [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc), the library has since evolved into a mature and robust solution, offering expanded features and improved performance.

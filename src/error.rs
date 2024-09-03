@@ -177,6 +177,8 @@ pub enum Error {
     Validation(#[from] Validation),
     #[error(transparent)]
     Userinfo(#[from] Userinfo),
+    #[error(transparent)]
+    Introspection(#[from] Introspection),
     #[error("Url must use TLS: '{0}'")]
     Insecure(::reqwest::Url),
     #[error("Scope must contain Openid")]
@@ -262,6 +264,18 @@ pub enum Userinfo {
 #[derive(Debug, Error)]
 #[error("The sub (subject) Claim MUST always be returned in the UserInfo Response")]
 pub struct StandardClaimsSubjectMissing;
+
+#[derive(Debug, Error)]
+pub enum Introspection {
+    #[error("Config has no introspection url")]
+    NoUrl,
+    #[error("The Introspection Endpoint MUST return a content-type header to indicate which format is being returned")]
+    MissingContentType,
+    #[error("Not parsable content type header: {content_type}")]
+    ParseContentType { content_type: String },
+    #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json")]
+    WrongContentType { content_type: String, body: Vec<u8> },
+}
 
 #[cfg(test)]
 mod tests {
