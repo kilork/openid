@@ -10,7 +10,7 @@ pub struct Config {
     // TODO For now, we only support code flows.
     pub token_endpoint: Url,
     #[serde(default)]
-    pub token_introspection_endpoint: Option<Url>,
+    pub introspection_endpoint: Option<Url>,
     #[serde(default)]
     pub userinfo_endpoint: Option<Url>,
     #[serde(default)]

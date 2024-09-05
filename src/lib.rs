@@ -32,6 +32,7 @@ pub mod provider;
 mod standard_claims;
 mod standard_claims_subject;
 mod token;
+mod token_introspection;
 mod userinfo;
 pub mod validation;
 
@@ -59,6 +60,7 @@ pub use provider::Provider;
 pub use standard_claims::StandardClaims;
 pub use standard_claims_subject::StandardClaimsSubject;
 pub use token::Token;
+pub use token_introspection::TokenIntrospection;
 pub use userinfo::Userinfo;
 
 /// Reimport `biscuit` dependency.

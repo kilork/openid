@@ -1,13 +1,16 @@
 use crate::{
     bearer::TemporalBearerGuard,
     discovered,
-    error::{ClientError, Decode, Error, Jose, Userinfo as ErrorUserinfo},
+    error::{
+        ClientError, Decode, Error, Introspection as ErrorIntrospection, Jose,
+        Userinfo as ErrorUserinfo,
+    },
     standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
     },
     Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
-    StandardClaims, Token, Userinfo,
+    StandardClaims, Token, TokenIntrospection, Userinfo,
 };
 
 use biscuit::{
@@ -431,6 +434,87 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                 Ok(info)
             }
             None => Err(ErrorUserinfo::NoUrl.into()),
+        }
+    }
+
+    /// Get a token introspection json document for a given token at the provider's token introspection endpoint.
+    /// Returns [Token Introspection Response](https://datatracker.ietf.org/doc/html/rfc7662#section-2.2)
+    /// as [TokenIntrospection] struct.
+    ///
+    /// # Errors
+    ///
+    /// - [Error::Http] if something goes wrong getting the document
+    /// - [Error::Insecure] if the token introspection url is not https
+    /// - [Error::Json] if the response is not a valid TokenIntrospection document
+    /// - [ErrorIntrospection::MissingContentType] if content-type header is missing
+    /// - [ErrorIntrospection::NoUrl] if this provider doesn't have a token introspection endpoint
+    /// - [ErrorIntrospection::ParseContentType] if content-type header is not parsable
+    /// - [ErrorIntrospection::WrongContentType] if content-type header is not accepted
+    pub async fn request_token_introspection<I>(
+        &self,
+        token: &Token<C>,
+    ) -> Result<TokenIntrospection<I>, Error>
+    where
+        I: CompactJson,
+    {
+        match self.config().introspection_endpoint {
+            Some(ref url) => {
+                let access_token = token.bearer.access_token.to_string();
+
+                let body = {
+                    let mut body = Serializer::new(String::new());
+                    body.append_pair("token", &access_token);
+                    body.finish()
+                };
+
+                let response = self
+                    .http_client
+                    .post(url.clone())
+                    .basic_auth(&self.client_id, self.client_secret.as_ref())
+                    .header(ACCEPT, "application/json")
+                    .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+                    .body(body)
+                    .send()
+                    .await?
+                    .error_for_status()?;
+
+                let content_type = response
+                    .headers()
+                    .get(&CONTENT_TYPE)
+                    .and_then(|content_type| content_type.to_str().ok())
+                    .ok_or(ErrorIntrospection::MissingContentType)?;
+
+                let mime_type = match content_type {
+                    "application/json" => mime::APPLICATION_JSON,
+                    content_type => content_type.parse::<mime::Mime>().map_err(|_| {
+                        ErrorIntrospection::ParseContentType {
+                            content_type: content_type.to_string(),
+                        }
+                    })?,
+                };
+
+                let info: TokenIntrospection<I> =
+                    match (mime_type.type_(), mime_type.subtype().as_str()) {
+                        (mime::APPLICATION, "json") => {
+                            let info_value: Value = response.json().await?;
+                            if info_value.get("error").is_some() {
+                                let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
+                                return Err(Error::ClientError(oauth2_error.into()));
+                            }
+                            serde_json::from_value(info_value)?
+                        }
+                        _ => {
+                            return Err(ErrorIntrospection::WrongContentType {
+                                content_type: content_type.to_string(),
+                                body: response.bytes().await?.to_vec(),
+                            }
+                            .into())
+                        }
+                    };
+
+                Ok(info)
+            }
+            None => Err(ErrorIntrospection::NoUrl.into()),
         }
     }
 }
