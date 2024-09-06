@@ -62,6 +62,6 @@ in Cargo.toml:
 
 in src/main.rs:
 
-{{ codeblock "rust, no_run" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/examples/warp.rs" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) }}
+{{ codeblock "rust, ignore" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/examples/warp.rs" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) }}
 
 See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v{{ env_var "OPENID_RUST_MAJOR_VERSION" }}/examples/warp.rs)

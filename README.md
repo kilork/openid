@@ -76,7 +76,7 @@ warp = { version = "0.3", default-features = false }
 
 in src/main.rs:
 
-```rust, no_run
+```rust, ignore
 use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 
 use cookie::time::Duration;
