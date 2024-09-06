@@ -36,10 +36,10 @@ mod token_introspection;
 mod userinfo;
 pub mod validation;
 
-#[cfg(any(feature = "uma2", doc))]
 /// UMA2 OIDC/OAuth2 extension.
 ///
 /// See [Federated Authorization for User-Managed Access (UMA) 2.0](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-authz-2.0-09.html)
+#[cfg(any(feature = "uma2", doc))]
 pub mod uma2;
 
 pub use ::biscuit::jws::Compact as Jws;

@@ -49,3 +49,6 @@ features = ["derive"]
 version = "0.12"
 default-features = false
 features = ["json"]
+
+[dev-dependencies]
+warp = "0.3"
