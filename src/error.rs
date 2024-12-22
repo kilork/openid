@@ -72,7 +72,7 @@ pub enum OAuth2ErrorCode {
     Unrecognized(String),
 }
 
-impl<'a> From<&'a str> for OAuth2ErrorCode {
+impl From<&str> for OAuth2ErrorCode {
     fn from(s: &str) -> OAuth2ErrorCode {
         match s {
             "invalid_request" => OAuth2ErrorCode::InvalidRequest,
@@ -98,9 +98,6 @@ pub enum ClientError {
 
     /// JSON error.
     Json(serde_json::Error),
-
-    /// Response parse error.
-    //    Parse(ParseError),
 
     /// OAuth 2.0 error.
     OAuth2(OAuth2Error),

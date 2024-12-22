@@ -1,6 +1,5 @@
 use de::Visitor;
-use serde::de;
-use serde::Deserializer;
+use serde::{de, Deserializer};
 
 pub fn bool_from_str_or_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
@@ -11,7 +10,7 @@ where
 
 struct BoolOrStringVisitor;
 
-impl<'de> Visitor<'de> for BoolOrStringVisitor {
+impl Visitor<'_> for BoolOrStringVisitor {
     type Value = bool;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
