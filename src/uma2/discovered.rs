@@ -1,11 +1,11 @@
+use biscuit::CompactJson;
+use url::Url;
+
 use crate::{
     error::Error,
     uma2::{Uma2Config, Uma2Provider},
     Claims, Client, Config, Configurable, Provider,
 };
-
-use biscuit::CompactJson;
-use url::Url;
 
 pub struct DiscoveredUma2(Uma2Config);
 
@@ -50,7 +50,8 @@ impl Uma2Provider for DiscoveredUma2 {
 }
 
 impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
-    /// Constructs a client from an issuer url and client parameters via discovery
+    /// Constructs a client from an issuer url and client parameters via
+    /// discovery
     pub async fn discover_uma2(
         id: String,
         secret: String,

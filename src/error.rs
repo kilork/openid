@@ -1,8 +1,9 @@
 /*!
 OAuth 2.0 errors.
 */
-use serde::Deserialize;
 use std::{error, fmt};
+
+use serde::Deserialize;
 
 /// OAuth 2.0 error.
 ///
@@ -15,7 +16,8 @@ pub struct OAuth2Error {
     /// Human-readable text providing additional information about the error.
     pub error_description: Option<String>,
 
-    /// A URI identifying a human-readable web page with information about the error.
+    /// A URI identifying a human-readable web page with information about the
+    /// error.
     pub error_uri: Option<String>,
 }
 
@@ -44,28 +46,32 @@ impl error::Error for OAuth2Error {
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuth2ErrorCode {
-    /// The request is missing a required parameter, includes an unsupported parameter value (other
-    /// than grant type), repeats a parameter, includes multiple credentials, utilizes more than
-    /// one mechanism for authenticating the client, or is otherwise malformed.
+    /// The request is missing a required parameter, includes an unsupported
+    /// parameter value (other than grant type), repeats a parameter,
+    /// includes multiple credentials, utilizes more than one mechanism for
+    /// authenticating the client, or is otherwise malformed.
     InvalidRequest,
 
-    /// Client authentication failed (e.g., unknown client, no client authentication included, or
-    /// unsupported authentication method).
+    /// Client authentication failed (e.g., unknown client, no client
+    /// authentication included, or unsupported authentication method).
     InvalidClient,
 
-    /// The provided authorization grant (e.g., authorization code, resource owner credentials) or
-    /// refresh token is invalid, expired, revoked, does not match the redirection URI used in the
-    /// authorization request, or was issued to another client.
+    /// The provided authorization grant (e.g., authorization code, resource
+    /// owner credentials) or refresh token is invalid, expired, revoked,
+    /// does not match the redirection URI used in the authorization
+    /// request, or was issued to another client.
     InvalidGrant,
 
-    /// The authenticated client is not authorized to use this authorization grant type.
+    /// The authenticated client is not authorized to use this authorization
+    /// grant type.
     UnauthorizedClient,
 
-    /// The authorization grant type is not supported by the authorization server.
+    /// The authorization grant type is not supported by the authorization
+    /// server.
     UnsupportedGrantType,
 
-    /// The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the
-    /// resource owner.
+    /// The requested scope is invalid, unknown, malformed, or exceeds the scope
+    /// granted by the resource owner.
     InvalidScope,
 
     /// An unrecognized error code, not defined in RFC 6749.
@@ -121,8 +127,8 @@ impl fmt::Display for ClientError {
     }
 }
 
-impl std::error::Error for ClientError {
-    fn cause(&self) -> Option<&dyn std::error::Error> {
+impl error::Error for ClientError {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             ClientError::Io(ref err) => Some(err),
             ClientError::Url(ref err) => Some(err),
@@ -154,7 +160,6 @@ impl_from!(ClientError::OAuth2, OAuth2Error);
 pub use biscuit::errors::Error as Jose;
 pub use reqwest::Error as Http;
 pub use serde_json::Error as Json;
-
 use thiserror::Error;
 
 #[cfg(feature = "uma2")]

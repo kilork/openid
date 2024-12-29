@@ -1,13 +1,13 @@
+use biscuit::CompactJson;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use serde_json::Value;
+use url::form_urlencoded::Serializer;
+
 use crate::{
     error::ClientError,
     uma2::{error::Uma2Error::*, permission_ticket::Uma2PermissionTicketRequest, *},
     Bearer, Claims, Client, OAuth2Error, Provider,
 };
-
-use biscuit::CompactJson;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
-use serde_json::Value;
-use url::form_urlencoded::Serializer;
 
 pub enum Uma2AuthenticationMethod {
     Bearer,
@@ -24,29 +24,38 @@ where
     ///
     ///  # Arguments
     /// * `token` Bearer token to do the RPT call
-    /// * `ticket` The most recent permission ticket received by the client as part of the UMA authorization process
-    /// * `claim_token` A string representing additional claims that should be considered by the
-    ///     server when evaluating permissions for the resource(s) and scope(s) being requested.
+    /// * `ticket` The most recent permission ticket received by the client as
+    ///   part of the UMA authorization process
+    /// * `claim_token` A string representing additional claims that should be
+    ///   considered by the server when evaluating permissions for the
+    ///   resource(s) and scope(s) being requested.
     /// * `claim_token_format` urn:ietf:params:oauth:token-type:jwt or https://openid.net/specs/openid-connect-core-1_0.html#IDToken
-    /// * `rpt` A previously issued RPT which permissions should also be evaluated and added in a
-    ///     new one. This parameter allows clients in possession of an RPT to perform incremental
-    ///     authorization where permissions are added on demand.
-    /// * `permission` String representing a set of one or more resources and scopes the client is
-    ///     seeking access. This parameter can be defined multiple times in order to request
-    ///     permission for multiple resource and scopes. This parameter is an extension to
-    ///     urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to allow clients to
-    ///     send authorization requests without a permission ticket
-    /// * `audience` The client identifier of the resource server to which the client is seeking
-    ///  access. This parameter is mandatory in case the permission parameter is defined
-    /// * `response_include_resource_name` A boolean value indicating to the server whether
-    ///     resource names should be included in the RPT’s permissions. If false, only the
-    ///     resource identifier is included
-    /// * `response_permissions_limit` An integer N that defines a limit for the amount of
-    ///     permissions an RPT can have. When used together with rpt parameter, only the last N
-    ///     requested permissions will be kept in the RPT.
-    /// * `submit_request` A boolean value indicating whether the server should create permission
-    ///     requests to the resources and scopes referenced by a permission ticket. This parameter
-    ///     only have effect if used together with the ticket parameter as part of a UMA authorization process
+    /// * `rpt` A previously issued RPT which permissions should also be
+    ///   evaluated and added in a new one. This parameter allows clients in
+    ///   possession of an RPT to perform incremental authorization where
+    ///   permissions are added on demand.
+    /// * `permission` String representing a set of one or more resources and
+    ///   scopes the client is seeking access. This parameter can be defined
+    ///   multiple times in order to request permission for multiple resource
+    ///   and scopes. This parameter is an extension to
+    ///   urn:ietf:params:oauth:grant-type:uma-ticket grant type in order to
+    ///   allow clients to send authorization requests without a permission
+    ///   ticket
+    /// * `audience` The client identifier of the resource server to which the
+    ///   client is seeking
+    ///  access. This parameter is mandatory in case the permission parameter is
+    /// defined
+    /// * `response_include_resource_name` A boolean value indicating to the
+    ///   server whether resource names should be included in the RPT’s
+    ///   permissions. If false, only the resource identifier is included
+    /// * `response_permissions_limit` An integer N that defines a limit for the
+    ///   amount of permissions an RPT can have. When used together with rpt
+    ///   parameter, only the last N requested permissions will be kept in the
+    ///   RPT.
+    /// * `submit_request` A boolean value indicating whether the server should
+    ///   create permission requests to the resources and scopes referenced by a
+    ///   permission ticket. This parameter only have effect if used together
+    ///   with the ticket parameter as part of a UMA authorization process
     #[allow(clippy::too_many_arguments)]
     pub async fn obtain_requesting_party_token(
         &self,
@@ -157,17 +166,19 @@ where
 
     ///
     /// Create a permission ticket.
-    /// A permission ticket is a special security token type representing a permission request.
-    /// Per the UMA specification, a permission ticket is:
-    /// A correlation handle that is conveyed from an authorization server to a resource server,
-    /// from a resource server to a client, and ultimately from a client back to an authorization
-    /// server, to enable the authorization server to assess the correct policies to apply to a
+    /// A permission ticket is a special security token type representing a
+    /// permission request. Per the UMA specification, a permission ticket
+    /// is: A correlation handle that is conveyed from an authorization
+    /// server to a resource server, from a resource server to a client, and
+    /// ultimately from a client back to an authorization server, to enable
+    /// the authorization server to assess the correct policies to apply to a
     /// request for authorization data.
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
-    /// * `requests` A list of resources, optionally with their scopes, optionally with extra claims to be
-    ///     processed.
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
+    /// * `requests` A list of resources, optionally with their scopes,
+    ///   optionally with extra claims to be processed.
     pub async fn create_uma2_permission_ticket(
         &self,
         pat_token: String,

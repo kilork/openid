@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-/*
 #![warn(
     missing_docs,
     missing_debug_implementations,
@@ -11,7 +10,6 @@
     unused_qualifications,
     variant_size_differences
 )]
-*/
 #[macro_use]
 extern crate lazy_static;
 
@@ -42,8 +40,7 @@ pub mod validation;
 #[cfg(any(feature = "uma2", doc))]
 pub mod uma2;
 
-pub use ::biscuit::jws::Compact as Jws;
-pub use ::biscuit::{Compact, CompactJson, Empty, SingleOrMultiple};
+pub use ::biscuit::{jws::Compact as Jws, Compact, CompactJson, Empty, SingleOrMultiple};
 pub use address::Address;
 pub use bearer::{Bearer, TemporalBearerGuard};
 pub use claims::Claims;

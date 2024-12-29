@@ -1,8 +1,8 @@
-use crate::{error::Error, Config, Configurable, Provider};
-use biscuit::jwk::JWKSet;
-use biscuit::Empty;
+use biscuit::{jwk::JWKSet, Empty};
 use reqwest::Client;
 use url::Url;
+
+use crate::{error::Error, Config, Configurable, Provider};
 
 #[derive(Debug, Clone)]
 pub struct Discovered(Config);
@@ -39,8 +39,8 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
     resp.json().await.map_err(Error::from)
 }
 
-/// Get the JWK set from the given Url. Errors are either a reqwest error or an Insecure error if
-/// the url isn't https.
+/// Get the JWK set from the given Url. Errors are either a reqwest error or an
+/// Insecure error if the url isn't https.
 pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     let resp = client.get(url).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)

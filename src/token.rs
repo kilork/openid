@@ -1,6 +1,7 @@
-use crate::{Bearer, Claims, IdToken, StandardClaims};
 pub use biscuit::jws::Compact as Jws;
 use biscuit::CompactJson;
+
+use crate::{Bearer, Claims, IdToken, StandardClaims};
 
 /// An OpenID Connect token. This is the only token allowed by spec.
 /// Has an access_token for bearer, and the id_token for authentication.

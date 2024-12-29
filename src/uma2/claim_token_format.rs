@@ -1,7 +1,8 @@
 use core::fmt;
 
 /// UMA2 claim token format
-/// Either is an access token (urn:ietf:params:oauth:token-type:jwt) or an OIDC ID token
+/// Either is an access token (urn:ietf:params:oauth:token-type:jwt) or an OIDC
+/// ID token
 pub enum Uma2ClaimTokenFormat {
     OAuthJwt,    // urn:ietf:params:oauth:token-type:jwt
     OidcIdToken, // https://openid.net/specs/openid-connect-core-1_0.html#IDToken

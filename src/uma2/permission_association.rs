@@ -1,11 +1,11 @@
+use biscuit::CompactJson;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     error::ClientError,
     uma2::{error::Uma2Error::*, Uma2Provider},
     Claims, Client, Provider,
 };
-
-use biscuit::CompactJson;
-use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -44,34 +44,44 @@ where
     P: Provider + Uma2Provider,
     C: CompactJson + Claims,
 {
-    /// Used when permissions can be set to resources by resource servers on behalf of their users
+    /// Used when permissions can be set to resources by resource servers on
+    /// behalf of their users
     ///
     /// # Arguments
-    /// * `token`   This API is protected by a bearer token that must represent a consent granted by
-    ///     the user to the resource server to manage permissions on his behalf. The bearer token
-    ///     can be a regular access token obtained from the token endpoint using:
-    ///         -  Resource Owner Password Credentials Grant Type
-    ///         - Token Exchange, in order to exchange an access token granted to some client
-    ///            (public client) for a token where audience is the resource server
+    /// * `token`   This API is protected by a bearer token that must represent
+    ///   a consent granted by the user to the resource server to manage
+    ///   permissions on his behalf. The bearer token can be a regular access
+    ///   token obtained from the token endpoint using:
+    ///         - Resource Owner Password Credentials Grant Type
+    ///         - Token Exchange, in order to exchange an access token granted
+    ///           to some client (public client) for a token where audience is
+    ///           the resource server
     /// * `resource_id` Resource ID to be protected
     /// * `name` Name for the permission
     /// * `description` Description for the permission
-    /// * `scopes` A list of scopes given on this resource to the user if the permission validates
+    /// * `scopes` A list of scopes given on this resource to the user if the
+    ///   permission validates
     /// * `roles` Give the permission to users in a list of roles
     /// * `groups` Give the permission to users in a list of groups
-    /// * `clients` Give the permission to users using a specific list of clients
+    /// * `clients` Give the permission to users using a specific list of
+    ///   clients
     /// * `owner` Give the permission to the owner
-    /// * `logic` Positive: If the user is in the required groups/roles or using the right client, then
-    ///     give the permission to the user. Negative - the inverse
-    /// * `decision_strategy` Go through the required conditions. If it is more than one condition,
-    ///     give the permission to the user if the following conditions are met:
-    ///         - Unanimous: The default strategy if none is provided. In this case, all policies must evaluate
-    ///             to a positive decision for the final decision to be also positive.
-    ///         - Affirmative: In this case, at least one policy must evaluate to a positive decision
-    ///             in order for the final decision to be also positive.
-    ///         - Consensus: In this case, the number of positive decisions must be greater than
-    ///             the number of negative decisions. If the number of positive and negative
-    ///             decisions is the same, the final decision will be negative
+    /// * `logic` Positive: If the user is in the required groups/roles or using
+    ///   the right client, then give the permission to the user. Negative - the
+    ///   inverse
+    /// * `decision_strategy` Go through the required conditions. If it is more
+    ///   than one condition, give the permission to the user if the following
+    ///   conditions are met:
+    ///         - Unanimous: The default strategy if none is provided. In this
+    ///           case, all policies must evaluate to a positive decision for
+    ///           the final decision to be also positive.
+    ///         - Affirmative: In this case, at least one policy must evaluate
+    ///           to a positive decision in order for the final decision to be
+    ///           also positive.
+    ///         - Consensus: In this case, the number of positive decisions must
+    ///           be greater than the number of negative decisions. If the
+    ///           number of positive and negative decisions is the same, the
+    ///           final decision will be negative
     #[allow(clippy::too_many_arguments)]
     pub async fn associate_uma2_resource_with_a_permission(
         &self,
@@ -110,30 +120,39 @@ where
     ///
     /// # Arguments
     /// * `id` The ID of the the associated permission
-    /// * `token`   This API is protected by a bearer token that must represent a consent granted by
-    ///     the user to the resource server to manage permissions on his behalf. The bearer token
-    ///     can be a regular access token obtained from the token endpoint using:
-    ///         -  Resource Owner Password Credentials Grant Type
-    ///         - Token Exchange, in order to exchange an access token granted to some client
-    ///            (public client) for a token where audience is the resource server
+    /// * `token`   This API is protected by a bearer token that must represent
+    ///   a consent granted by the user to the resource server to manage
+    ///   permissions on his behalf. The bearer token can be a regular access
+    ///   token obtained from the token endpoint using:
+    ///         - Resource Owner Password Credentials Grant Type
+    ///         - Token Exchange, in order to exchange an access token granted
+    ///           to some client (public client) for a token where audience is
+    ///           the resource server
     /// * `name` Name for the permission
     /// * `description` Description for the permission
-    /// * `scopes` A list of scopes given on this resource to the user if the permission validates
+    /// * `scopes` A list of scopes given on this resource to the user if the
+    ///   permission validates
     /// * `roles` Give the permission to users in a list of roles
     /// * `groups` Give the permission to users in a list of groups
-    /// * `clients` Give the permission to users using a specific list of clients
+    /// * `clients` Give the permission to users using a specific list of
+    ///   clients
     /// * `owner` Give the permission to the owner
-    /// * `logic` Positive: If the user is in the required groups/roles or using the right client, then
-    ///     give the permission to the user. Negative - the inverse
-    /// * `decision_strategy` Go through the required conditions. If it is more than one condition,
-    ///     give the permission to the user if the following conditions are met:
-    ///         - Unanimous: The default strategy if none is provided. In this case, all policies must evaluate
-    ///             to a positive decision for the final decision to be also positive.
-    ///         - Affirmative: In this case, at least one policy must evaluate to a positive decision
-    ///             in order for the final decision to be also positive.
-    ///         - Consensus: In this case, the number of positive decisions must be greater than
-    ///             the number of negative decisions. If the number of positive and negative
-    ///             decisions is the same, the final decision will be negative
+    /// * `logic` Positive: If the user is in the required groups/roles or using
+    ///   the right client, then give the permission to the user. Negative - the
+    ///   inverse
+    /// * `decision_strategy` Go through the required conditions. If it is more
+    ///   than one condition, give the permission to the user if the following
+    ///   conditions are met:
+    ///         - Unanimous: The default strategy if none is provided. In this
+    ///           case, all policies must evaluate to a positive decision for
+    ///           the final decision to be also positive.
+    ///         - Affirmative: In this case, at least one policy must evaluate
+    ///           to a positive decision in order for the final decision to be
+    ///           also positive.
+    ///         - Consensus: In this case, the number of positive decisions must
+    ///           be greater than the number of negative decisions. If the
+    ///           number of positive and negative decisions is the same, the
+    ///           final decision will be negative
     #[allow(clippy::too_many_arguments)]
     pub async fn update_uma2_resource_permission(
         &self,
@@ -172,12 +191,14 @@ where
     ///
     /// # Arguments
     /// * `id` The ID of the resource permission
-    /// * `token`   This API is protected by a bearer token that must represent a consent granted by
-    ///     the user to the resource server to manage permissions on his behalf. The bearer token
-    ///     can be a regular access token obtained from the token endpoint using:
-    ///         -  Resource Owner Password Credentials Grant Type
-    ///         - Token Exchange, in order to exchange an access token granted to some client
-    ///            (public client) for a token where audience is the resource server
+    /// * `token`   This API is protected by a bearer token that must represent
+    ///   a consent granted by the user to the resource server to manage
+    ///   permissions on his behalf. The bearer token can be a regular access
+    ///   token obtained from the token endpoint using:
+    ///         - Resource Owner Password Credentials Grant Type
+    ///         - Token Exchange, in order to exchange an access token granted
+    ///           to some client (public client) for a token where audience is
+    ///           the resource server
     pub async fn delete_uma2_resource_permission(
         &self,
         id: String,
@@ -191,17 +212,20 @@ where
     /// Search for UMA2 resource associated permissions
     ///
     /// # Arguments
-    /// * `token`   This API is protected by a bearer token that must represent a consent granted by
-    ///     the user to the resource server to manage permissions on his behalf. The bearer token
-    ///     can be a regular access token obtained from the token endpoint using:
-    ///         -  Resource Owner Password Credentials Grant Type
-    ///         - Token Exchange, in order to exchange an access token granted to some client
-    ///            (public client) for a token where audience is the resource server
+    /// * `token`   This API is protected by a bearer token that must represent
+    ///   a consent granted by the user to the resource server to manage
+    ///   permissions on his behalf. The bearer token can be a regular access
+    ///   token obtained from the token endpoint using:
+    ///         - Resource Owner Password Credentials Grant Type
+    ///         - Token Exchange, in order to exchange an access token granted
+    ///           to some client (public client) for a token where audience is
+    ///           the resource server
     /// * `resource` Search by resource id
     /// * `name` Search by name
     /// * `scope` Search by scope
     /// * `offset` Skip n amounts of permissions.
-    /// * `count` Max amount of permissions to return. Should be used especially with large return sets
+    /// * `count` Max amount of permissions to return. Should be used especially
+    ///   with large return sets
     pub async fn search_for_uma2_resource_permission(
         &self,
         token: String,

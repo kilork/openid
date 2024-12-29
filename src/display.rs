@@ -1,4 +1,6 @@
-/// The four values for the preferred display parameter in the Options. See spec for details.
+/// The four values for the preferred display parameter in the Options. See spec
+/// for details.
+#[derive(Debug, Clone, Copy)]
 pub enum Display {
     Page,
     Popup,

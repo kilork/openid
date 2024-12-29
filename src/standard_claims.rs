@@ -1,7 +1,8 @@
-use crate::{Claims, Userinfo};
 use biscuit::{CompactJson, SingleOrMultiple};
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use crate::{Claims, Userinfo};
 
 /// ID Token contents. [See spec.](https://openid.net/specs/openid-connect-basic-1_0.html#IDToken)
 #[derive(Deserialize, Serialize, Debug, Clone, Eq, PartialEq)]

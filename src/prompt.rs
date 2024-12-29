@@ -1,4 +1,5 @@
-/// The four possible values for the prompt parameter set in Options. See spec for details.
+/// The four possible values for the prompt parameter set in Options. See spec
+/// for details.
 #[derive(PartialEq, Eq, Hash)]
 pub enum Prompt {
     None,

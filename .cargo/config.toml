@@ -1,0 +1,2 @@
+[alias]
+f = "fmt -- --config unstable_features=true --config wrap_comments=true --config group_imports=StdExternalCrate"

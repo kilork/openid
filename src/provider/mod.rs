@@ -1,10 +1,10 @@
 /*!
 OAuth 2.0 providers.
 */
-#[cfg(any(feature = "microsoft", doc))]
 /// Microsoft OpenID Connect.
 ///
 /// See [Microsoft identity platform and OpenID Connect protocol](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc)
+#[cfg(any(feature = "microsoft", doc))]
 pub mod microsoft;
 
 use url::Url;
@@ -23,8 +23,8 @@ pub trait Provider {
 
     /// Provider requires credentials via request body.
     ///
-    /// Although not recommended by the RFC, some providers require `client_id` and `client_secret`
-    /// as part of the request body.
+    /// Although not recommended by the RFC, some providers require `client_id`
+    /// and `client_secret` as part of the request body.
     ///
     /// See [RFC 6749, section 2.3.1](http://tools.ietf.org/html/rfc6749#section-2.3.1).
     fn credentials_in_body(&self) -> bool {
@@ -37,11 +37,12 @@ pub trait Provider {
 /// See [Using OAuth 2.0 to Access Google
 /// APIs](https://developers.google.com/identity/protocols/OAuth2).
 pub mod google {
-    use super::Provider;
     use url::Url;
 
-    /// Signals the server to return the authorization code by prompting the user to copy and
-    /// paste.
+    use super::Provider;
+
+    /// Signals the server to return the authorization code by prompting the
+    /// user to copy and paste.
     ///
     /// See [Choosing a redirect URI][uri].
     ///

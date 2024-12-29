@@ -4,10 +4,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct Address {
     #[serde(default)]
-    /// Full mailing address, formatted for display or use on a mailing label. This field MAY contain multiple lines, separated by newlines. Newlines can be represented either as a carriage return/line feed pair ("\r\n") or as a single line feed character ("\n").
+    /// Full mailing address, formatted for display or use on a mailing label.
+    /// This field MAY contain multiple lines, separated by newlines. Newlines
+    /// can be represented either as a carriage return/line feed pair ("\r\n")
+    /// or as a single line feed character ("\n").
     pub formatted: Option<String>,
     #[serde(default)]
-    /// Full street address component, which MAY include house number, street name, Post Office Box, and multi-line extended street address information. This field MAY contain multiple lines, separated by newlines. Newlines can be represented either as a carriage return/line feed pair ("\r\n") or as a single line feed character ("\n").
+    /// Full street address component, which MAY include house number, street
+    /// name, Post Office Box, and multi-line extended street address
+    /// information. This field MAY contain multiple lines, separated by
+    /// newlines. Newlines can be represented either as a carriage return/line
+    /// feed pair ("\r\n") or as a single line feed character ("\n").
     pub street_address: Option<String>,
     #[serde(default)]
     /// City or locality component.

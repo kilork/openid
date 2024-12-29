@@ -1,3 +1,16 @@
+use std::{borrow::Cow, marker::PhantomData};
+
+use biscuit::{
+    jwa::{self, SignatureAlgorithm},
+    jwk::{AlgorithmParameters, JWKSet},
+    jws::{Compact, Secret},
+    CompactJson, Empty,
+};
+use chrono::Duration;
+use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use serde_json::Value;
+use url::{form_urlencoded::Serializer, Url};
+
 use crate::{
     bearer::TemporalBearerGuard,
     discovered,
@@ -12,18 +25,6 @@ use crate::{
     Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
     StandardClaims, Token, TokenIntrospection, Userinfo,
 };
-
-use biscuit::{
-    jwa::{self, SignatureAlgorithm},
-    jwk::{AlgorithmParameters, JWKSet},
-    jws::{Compact, Secret},
-    CompactJson, Empty,
-};
-use chrono::Duration;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
-use serde_json::Value;
-use std::{borrow::Cow, marker::PhantomData};
-use url::{form_urlencoded::Serializer, Url};
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
 #[derive(Debug)]
@@ -40,13 +41,18 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// Redirect URI.
     pub redirect_uri: Option<String>,
 
+    /// Reqwest client used to send HTTP requests.
     pub http_client: reqwest::Client,
 
+    /// The set of JSON Web Keys for this client. They will be discovered via an
+    /// OIDC discovery process.
     pub jwks: Option<JWKSet<Empty>>,
+
     marker: PhantomData<C>,
 }
 
-// Common pattern in the Client::decode function when dealing with mismatched keys
+// Common pattern in the Client::decode function when dealing with mismatched
+// keys
 macro_rules! wrong_key {
     ($expected:expr, $actual:expr) => {
         Err(Jose::WrongKeyType {
@@ -77,7 +83,8 @@ impl<C: CompactJson + Claims, P: Clone> Clone for Client<P, C> {
 }
 
 impl<C: CompactJson + Claims> Client<Discovered, C> {
-    /// Constructs a client from an issuer url and client parameters via discovery
+    /// Constructs a client from an issuer url and client parameters via
+    /// discovery
     pub async fn discover(
         id: String,
         secret: impl Into<Option<String>>,
@@ -87,7 +94,8 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         Self::discover_with_client(reqwest::Client::new(), id, secret, redirect, issuer).await
     }
 
-    /// Constructs a client from an issuer url and client parameters via discovery
+    /// Constructs a client from an issuer url and client parameters via
+    /// discovery
     pub async fn discover_with_client(
         http_client: reqwest::Client,
         id: String,
@@ -119,14 +127,16 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             .expect("We always require a redirect to construct client!")
     }
 
-    /// A reference to the config document of the provider obtained via discovery
+    /// A reference to the config document of the provider obtained via
+    /// discovery
     pub fn config(&self) -> &Config {
         self.provider.config()
     }
 
-    /// Constructs the auth_url to redirect a client to the provider. Options are... optional. Use
-    /// them as needed. Keep the Options struct around for authentication, or at least the nonce
-    /// and max_age parameter - we need to verify they stay the same and validate if you used them.
+    /// Constructs the auth_url to redirect a client to the provider. Options
+    /// are... optional. Use them as needed. Keep the Options struct around
+    /// for authentication, or at least the nonce and max_age parameter - we
+    /// need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
         let scope = match options.scope.as_deref() {
             Some(scope) => {
@@ -179,7 +189,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         url
     }
 
-    /// Given an auth_code and auth options, request the token, decode, and validate it.
+    /// Given an auth_code and auth options, request the token, decode, and
+    /// validate it.
     pub async fn authenticate(
         &self,
         auth_code: &str,
@@ -199,11 +210,14 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     ///
     /// # Errors
     ///
-    /// - [Decode::MissingKid] if the keyset has multiple keys but the key id on the token is missing
+    /// - [Decode::MissingKid] if the keyset has multiple keys but the key id on
+    ///   the token is missing
     /// - [Decode::MissingKey] if the given key id is not in the key set
     /// - [Decode::EmptySet] if the keyset is empty
-    /// - [Jose::WrongKeyType] if the alg of the key and the alg in the token header mismatch
-    /// - [Jose::WrongKeyType] if the specified key alg isn't a signature algorithm
+    /// - [Jose::WrongKeyType] if the alg of the key and the alg in the token
+    ///   header mismatch
+    /// - [Jose::WrongKeyType] if the specified key alg isn't a signature
+    ///   algorithm
     /// - [Decode::UnsupportedEllipticCurve] if the alg is cryptographic curve
     /// - [Decode::UnsupportedOctetKeyPair] if the alg is octet key pair
     /// - [Error::Jose] error if decoding fails
@@ -266,8 +280,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         Ok(())
     }
 
-    /// Validate a decoded token. If you don't get an error, its valid! Nonce and max_age come from
-    /// your auth_uri options.
+    /// Validate a decoded token. If you don't get an error, its valid! Nonce
+    /// and max_age come from your auth_uri options.
     ///
     /// # Errors
     ///
@@ -301,43 +315,53 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         Ok(())
     }
 
-    /// Get a userinfo json document for a given token at the provider's userinfo endpoint.
-    /// Returns [Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims) as [Userinfo] struct.
+    /// Get a userinfo json document for a given token at the provider's
+    /// userinfo endpoint. Returns [Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims) as [Userinfo] struct.
     ///
     /// # Errors
     ///
-    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo endpoint
+    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo
+    ///   endpoint
     /// - [Error::Insecure] if the userinfo url is not https
     /// - [Error::Jose] if the token is not decoded
     /// - [Error::Http] if something goes wrong getting the document
     /// - [Error::Json] if the response is not a valid Userinfo document
     /// - [ErrorUserinfo::MissingSubject] if subject (sub) is missing
-    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and tokens subject mismatch
+    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and
+    ///   tokens subject mismatch
     pub async fn request_userinfo(&self, token: &Token<C>) -> Result<Userinfo, Error> {
         self.request_userinfo_custom(token).await
     }
 
-    /// Get a userinfo json document for a given token at the provider's userinfo endpoint.
-    /// Returns [UserInfo Response](https://openid.net/specs/openid-connect-basic-1_0.html#UserInfoResponse)
-    /// including non-standard claims. The sub (subject) Claim MUST always be returned in the UserInfo Response.
+    /// Get a userinfo json document for a given token at the provider's
+    /// userinfo endpoint. Returns [UserInfo Response](https://openid.net/specs/openid-connect-basic-1_0.html#UserInfoResponse)
+    /// including non-standard claims. The sub (subject) Claim MUST always be
+    /// returned in the UserInfo Response.
     ///
     /// # Errors
     ///
-    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo endpoint
+    /// - [ErrorUserinfo::NoUrl] if this provider doesn't have a userinfo
+    ///   endpoint
     /// - [Error::Insecure] if the userinfo url is not https
-    /// - [Decode::MissingKid] if the keyset has multiple keys but the key id on the token is missing
+    /// - [Decode::MissingKid] if the keyset has multiple keys but the key id on
+    ///   the token is missing
     /// - [Decode::MissingKey] if the given key id is not in the key set
     /// - [Decode::EmptySet] if the keyset is empty
-    /// - [Jose::WrongKeyType] if the alg of the key and the alg in the token header mismatch
-    /// - [Jose::WrongKeyType] if the specified key alg isn't a signature algorithm
+    /// - [Jose::WrongKeyType] if the alg of the key and the alg in the token
+    ///   header mismatch
+    /// - [Jose::WrongKeyType] if the specified key alg isn't a signature
+    ///   algorithm
     /// - [Error::Jose] if the token is not decoded
     /// - [Error::Http] if something goes wrong getting the document
     /// - [Error::Json] if the response is not a valid Userinfo document
     /// - [ErrorUserinfo::MissingSubject] if subject (sub) is missing
-    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and tokens subject mismatch
+    /// - [ErrorUserinfo::MismatchSubject] if the returned userinfo document and
+    ///   tokens subject mismatch
     /// - [ErrorUserinfo::MissingContentType] if content-type header is missing
-    /// - [ErrorUserinfo::ParseContentType] if content-type header is not parsable
-    /// - [ErrorUserinfo::WrongContentType] if content-type header is not accepted
+    /// - [ErrorUserinfo::ParseContentType] if content-type header is not
+    ///   parsable
+    /// - [ErrorUserinfo::WrongContentType] if content-type header is not
+    ///   accepted
     ///
     /// # Examples
     ///
@@ -348,21 +372,21 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// # let bearer: Bearer = serde_json::from_str("{}").unwrap();
     /// # let token = Token::<StandardClaims>::from(bearer);
     /// # let client = DiscoveredClient::discover("client_id".to_string(), "client_secret".to_string(), "http://redirect".to_string(), url::Url::parse("http://issuer".into()).unwrap(),).await?;
-    ///#[derive(Debug, Deserialize, Serialize)]
-    ///struct CustomUserinfo(std::collections::HashMap<String, serde_json::Value>);
+    /// #[derive(Debug, Deserialize, Serialize)]
+    /// struct CustomUserinfo(std::collections::HashMap<String, serde_json::Value>);
     ///
-    ///impl StandardClaimsSubject for CustomUserinfo {
+    /// impl StandardClaimsSubject for CustomUserinfo {
     ///    fn sub(&self) -> Result<&str, StandardClaimsSubjectMissing> {
     ///        self.0
     ///            .get("sub")
     ///            .and_then(|x| x.as_str())
     ///            .ok_or(StandardClaimsSubjectMissing)
     ///    }
-    ///}
+    /// }
     ///
-    ///impl openid::CompactJson for CustomUserinfo {}
+    /// impl openid::CompactJson for CustomUserinfo {}
     ///
-    ///let custom_userinfo: CustomUserinfo = client.request_userinfo_custom(&token).await?;
+    /// let custom_userinfo: CustomUserinfo = client.request_userinfo_custom(&token).await?;
     /// # Ok(()) }
     /// ```
     pub async fn request_userinfo_custom<U>(&self, token: &Token<C>) -> Result<U, Error>
@@ -437,19 +461,24 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         }
     }
 
-    /// Get a token introspection json document for a given token at the provider's token introspection endpoint.
-    /// Returns [Token Introspection Response](https://datatracker.ietf.org/doc/html/rfc7662#section-2.2)
+    /// Get a token introspection json document for a given token at the
+    /// provider's token introspection endpoint. Returns [Token Introspection Response](https://datatracker.ietf.org/doc/html/rfc7662#section-2.2)
     /// as [TokenIntrospection] struct.
     ///
     /// # Errors
     ///
     /// - [Error::Http] if something goes wrong getting the document
     /// - [Error::Insecure] if the token introspection url is not https
-    /// - [Error::Json] if the response is not a valid TokenIntrospection document
-    /// - [ErrorIntrospection::MissingContentType] if content-type header is missing
-    /// - [ErrorIntrospection::NoUrl] if this provider doesn't have a token introspection endpoint
-    /// - [ErrorIntrospection::ParseContentType] if content-type header is not parsable
-    /// - [ErrorIntrospection::WrongContentType] if content-type header is not accepted
+    /// - [Error::Json] if the response is not a valid TokenIntrospection
+    ///   document
+    /// - [ErrorIntrospection::MissingContentType] if content-type header is
+    ///   missing
+    /// - [ErrorIntrospection::NoUrl] if this provider doesn't have a token
+    ///   introspection endpoint
+    /// - [ErrorIntrospection::ParseContentType] if content-type header is not
+    ///   parsable
+    /// - [ErrorIntrospection::WrongContentType] if content-type header is not
+    ///   accepted
     pub async fn request_token_introspection<I>(
         &self,
         token: &Token<C>,
@@ -637,7 +666,8 @@ where
         Ok(token)
     }
 
-    /// Requests an access token using the Resource Owner Password Credentials Grant flow
+    /// Requests an access token using the Resource Owner Password Credentials
+    /// Grant flow
     ///
     /// See [RFC 6749, section 4.3](https://tools.ietf.org/html/rfc6749#section-4.3)
     pub async fn request_token_using_password_credentials(
@@ -786,9 +816,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use url::Url;
+
     use super::Client;
     use crate::provider::Provider;
-    use url::Url;
 
     struct Test {
         auth_uri: Url,

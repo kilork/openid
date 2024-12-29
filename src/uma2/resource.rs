@@ -1,13 +1,13 @@
+use biscuit::CompactJson;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value;
+
 use crate::{
     error::ClientError,
     uma2::{error::Uma2Error::*, Uma2Provider},
     Claims, Client, OAuth2Error, Provider,
 };
-
-use biscuit::CompactJson;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Uma2Resource {
@@ -46,16 +46,19 @@ where
     /// Create a UMA2 managed resource
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
     /// uma_protection scope defined
     /// * `name` User readable name for this resource.
     /// * `resource_type` The type of resource. Helps to categorise resources
     /// * `icon_uri` User visible icon's URL
     /// * `resource_scopes` A list of scopes attached to this resource
     /// * `description` A readable description
-    /// * `owner` Resource server is the default user, unless this value is set. Can be the username
+    /// * `owner` Resource server is the default user, unless this value is set.
+    ///   Can be the username
     /// of the user or its server identifier
-    /// * `owner_managed_access` Whether to allow user managed access of this resource
+    /// * `owner_managed_access` Whether to allow user managed access of this
+    ///   resource
     #[allow(clippy::too_many_arguments)]
     pub async fn create_uma2_resource(
         &self,
@@ -98,16 +101,19 @@ where
     /// Update a UMA2 managed resource
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
     /// uma_protection scope defined
     /// * `name` User readable name for this resource.
     /// * `resource_type` The type of resource. Helps to categorise resources
     /// * `icon_uri` User visible icon's URL
     /// * `resource_scopes` A list of scopes attached to this resource
     /// * `description` A readable description
-    /// * `owner` Resource server is the default user, unless this value is set. Can be the username
+    /// * `owner` Resource server is the default user, unless this value is set.
+    ///   Can be the username
     /// of the user or its server identifier
-    /// * `owner_managed_access` Whether to allow user managed access of this resource
+    /// * `owner_managed_access` Whether to allow user managed access of this
+    ///   resource
     #[allow(clippy::too_many_arguments)]
     pub async fn update_uma2_resource(
         &self,
@@ -149,7 +155,8 @@ where
     /// Deletes a UMA2 managed resource
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
     /// * `id` The server identifier of the resource
     pub async fn delete_uma2_resource(
         &self,
@@ -164,7 +171,8 @@ where
     /// Get a UMA2 managed resource by its identifier
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
     /// * `id` The server identifier of the resource
     pub async fn get_uma2_resource_by_id(
         &self,
@@ -180,13 +188,13 @@ where
     /// Search for a UMA2 resource
     ///
     /// # Arguments
-    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but should have the
+    /// * `pat_token` A Protection API token (PAT) is like any OAuth2 token, but
+    ///   should have the
     /// * `name` Search by the resource's name
     /// * `uri` Search by the resource's uri
     /// * `owner` Search by the resource's owner
     /// * `resource_type` Search by the resource's type
     /// * `scope` Search by the resource's scope
-    ///
     pub async fn search_for_uma2_resources(
         &self,
         pat_token: String,

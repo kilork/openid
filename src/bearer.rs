@@ -1,36 +1,81 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// The bearer token type.
 ///
-/// See [RFC 6750](http://tools.ietf.org/html/rfc6750).
+/// See:
+/// - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse)
+/// - [RFC 6750](http://tools.ietf.org/html/rfc6750).
+/// - [RFC 6749 5.1](https://datatracker.ietf.org/doc/html/rfc6749#section-5.1)
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Bearer {
+    /// The access token issued by the authorization server.
+    ///
+    /// See:
+    /// - [RFC 6749 1.4](https://datatracker.ietf.org/doc/html/rfc6749#section-1.4)
     pub access_token: String,
+    /// The type of the token issued.
+    ///
+    /// Value is case insensitive.
+    ///
+    /// See:
+    /// - [RFC 6749 7.1](https://datatracker.ietf.org/doc/html/rfc6749#section-7.1)
     pub token_type: String,
+    /// OPTIONAL, if identical to the scope requested by the client; otherwise,
+    /// REQUIRED
     pub scope: Option<String>,
+    /// OAuth 2.0 state value. REQUIRED if the state parameter is present in the
+    /// Authorization Request. Clients MUST verify that the state value is equal
+    /// to the value of state parameter in the Authorization Request.
     pub state: Option<String>,
+    /// The refresh token, which can be used to obtain new access tokens using
+    /// the same authorization grant.
+    ///
+    /// See:
+    /// - [RFC 6749 1.5](https://datatracker.ietf.org/doc/html/rfc6749#section-1.5)
     pub refresh_token: Option<String>,
+    /// The lifetime in seconds of the access token.
+    ///
+    /// For example, the value "3600" denotes that the access token will
+    /// expire in one hour from the time the response was generated.
+    /// If omitted, the authorization server SHOULD provide the
+    /// expiration time via other means or document the default value.
     pub expires_in: Option<u64>,
+    /// ID Token value associated with the authenticated session.
+    ///
+    /// See:
+    /// - [OpenID Connect Core 1.0: Token Response](https://openid.net/specs/openid-connect-core-1_0.html#TokenResponse)
     pub id_token: Option<String>,
+    /// Additional properties which are not part of the standard OAuth 2.0
+    /// response.
     #[serde(flatten)]
     pub extra: Option<HashMap<String, serde_json::Value>>,
 }
 
 /// Manages bearer tokens along with their expiration times.
+#[derive(Debug)]
 pub struct TemporalBearerGuard {
     bearer: Bearer,
     expires_at: Option<DateTime<Utc>>,
 }
 
 impl TemporalBearerGuard {
+    /// Calculates whether the bearer has expired.
+    ///
+    /// The current time is compared to `self.expires_at` and a boolean
+    /// value indicating whether the bearer has expired is returned.
     pub fn expired(&self) -> bool {
         self.expires_at
             .map(|expires_at| Utc::now() >= expires_at)
             .unwrap_or_default()
     }
 
+    /// Calculates whether the bearer will expire at a given point in time.
+    ///
+    /// Returns `true` if the bearer token's expiration time matches the
+    /// provided `expiration_point`.
     pub fn expires_at(&self) -> Option<DateTime<Utc>> {
         self.expires_at
     }

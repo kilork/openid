@@ -1,9 +1,10 @@
+use biscuit::SingleOrMultiple;
+use chrono::{DateTime, Duration, Utc};
+
 use crate::{
     error::{Error, Expiry, Mismatch, Missing, Validation},
     Claims, Config,
 };
-use biscuit::SingleOrMultiple;
-use chrono::{DateTime, Duration, Utc};
 
 pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(), Error> {
     if claims.iss() != &config.issuer {

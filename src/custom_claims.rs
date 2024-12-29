@@ -1,14 +1,15 @@
-use crate::{Claims, StandardClaims};
 use serde::{de::DeserializeOwned, Serialize};
+
+use crate::{Claims, StandardClaims};
 
 /// Custom Claims embedded extension.
 ///
 /// # Examples
 ///
 /// ```
+/// # use serde::{Deserialize, Serialize};
 /// use openid::{Claims, CompactJson, CustomClaims, StandardClaims, Client, Discovered};
 /// use openid::provider::google::Installed;
-/// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Deserialize, Serialize)]
 /// struct MyClaims {
