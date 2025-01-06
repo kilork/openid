@@ -316,7 +316,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     }
 
     /// Get a userinfo json document for a given token at the provider's
-    /// userinfo endpoint. Returns [Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims) as [Userinfo] struct.
+    /// userinfo endpoint. Returns [Standard Claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims) as [Userinfo] struct.
     ///
     /// # Errors
     ///
@@ -334,7 +334,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     }
 
     /// Get a userinfo json document for a given token at the provider's
-    /// userinfo endpoint. Returns [UserInfo Response](https://openid.net/specs/openid-connect-basic-1_0.html#UserInfoResponse)
+    /// userinfo endpoint. Returns [UserInfo Response](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse)
     /// including non-standard claims. The sub (subject) Claim MUST always be
     /// returned in the UserInfo Response.
     ///

@@ -4,6 +4,10 @@ use url::Url;
 
 use crate::{error::Error, Config, Configurable, Provider};
 
+/// A discovered provider.
+///
+/// This struct is used to store configuration for a provider that was
+/// discovered using the discovery protocol.
 #[derive(Debug, Clone)]
 pub struct Discovered(Config);
 

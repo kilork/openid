@@ -32,6 +32,7 @@ mod standard_claims_subject;
 mod token;
 mod token_introspection;
 mod userinfo;
+/// Token validation methods.
 pub mod validation;
 
 /// UMA2 OIDC/OAuth2 extension.
@@ -65,7 +66,20 @@ pub mod biscuit {
     pub use biscuit::*;
 }
 
+/// Alias for [Jws]
 pub type IdToken<T> = Jws<T, Empty>;
+/// Alias for discovered [Client].
+///
+/// See also:
+///
+/// - [Discovered]
+/// - [StandardClaims]
 pub type DiscoveredClient = Client<Discovered, StandardClaims>;
+/// Alias for discovered UMA2 [Client]
+///
+/// See also:
+///
+/// - [uma2::DiscoveredUma2]
+/// - [StandardClaims]
 #[cfg(feature = "uma2")]
 pub type DiscoveredUma2Client = Client<uma2::DiscoveredUma2, StandardClaims>;

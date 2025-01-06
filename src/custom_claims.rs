@@ -37,6 +37,7 @@ use crate::{Claims, StandardClaims};
 ///
 /// See full example: [openid-example:custom_claims](https://github.com/kilork/openid-example/blob/master/examples/custom_claims.rs)
 pub trait CustomClaims: Serialize + DeserializeOwned {
+    /// The standard claims.
     fn standard_claims(&self) -> &StandardClaims;
 }
 

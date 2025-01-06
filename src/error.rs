@@ -1,5 +1,5 @@
 /*!
-OAuth 2.0 errors.
+Library errors for OAuth 2.0 and OpenID.
 */
 use std::{error, fmt};
 
@@ -91,6 +91,8 @@ impl From<&str> for OAuth2ErrorCode {
         }
     }
 }
+
+/// Client side error.
 #[derive(Debug)]
 pub enum ClientError {
     /// IO error.
@@ -165,118 +167,213 @@ use thiserror::Error;
 #[cfg(feature = "uma2")]
 use crate::uma2::Uma2Error;
 
+/// openid library error.
+///
+/// Wraps different sources of errors under one error type for library.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// [biscuit] errors.
     #[error(transparent)]
     Jose(#[from] Jose),
+    /// [reqwest] errors.
     #[error(transparent)]
     Http(#[from] Http),
+    /// [serde_json] errors.
     #[error(transparent)]
     Json(#[from] Json),
+    /// Decode token error.
     #[error(transparent)]
     Decode(#[from] Decode),
+    /// Validation error.
     #[error(transparent)]
     Validation(#[from] Validation),
+    /// Errors related to userinfo endpoint.
     #[error(transparent)]
     Userinfo(#[from] Userinfo),
+    /// Errors related to introspection endpoint.
     #[error(transparent)]
     Introspection(#[from] Introspection),
+    /// Secure connection is required.
     #[error("Url must use TLS: '{0}'")]
     Insecure(::reqwest::Url),
+    /// The scope must contain `openid`.
     #[error("Scope must contain Openid")]
     MissingOpenidScope,
+    /// Path segments in url is cannot-be-a-base.
     #[error("Url: Path segments is cannot-be-a-base")]
     CannotBeABase,
+    /// Client side error.
     #[error(transparent)]
     ClientError(#[from] ClientError),
 }
 
+/// Decode token error.
 #[derive(Debug, Error)]
 pub enum Decode {
-    #[error("Token Missing a Key Id when the key set has multiple keys")]
+    /// Token missing a key id when the key set has multiple keys.
+    #[error("Token missing a key id when the key set has multiple keys")]
     MissingKid,
+    /// Token wants this key id not in the key set.
     #[error("Token wants this key id not in the key set: {0}")]
     MissingKey(String),
+    /// JWK Set is empty.
     #[error("JWK Set is empty")]
     EmptySet,
+    /// No support for EC keys yet.
     #[error("No support for EC keys yet")]
     UnsupportedEllipticCurve,
+    /// No support for Octet key pair yet.
     #[error("No support for Octet key pair yet")]
     UnsupportedOctetKeyPair,
 }
 
+/// Validation failure related to mismatch of values, missing values or expired
+/// values.
 #[derive(Debug, Error)]
 pub enum Validation {
+    /// Mismatch in token attribute.
     #[error(transparent)]
     Mismatch(#[from] Mismatch),
+    /// Missing required token attribute.
     #[error(transparent)]
     Missing(#[from] Missing),
+    /// Token expired.
     #[error(transparent)]
     Expired(#[from] Expiry),
 }
 
+/// Mismatch in token attribute.
 #[derive(Debug, Error)]
 pub enum Mismatch {
+    /// Client ID and Token authorized party mismatch.
     #[error("Client ID and Token authorized party mismatch: '{expected}', '{actual}'")]
-    AuthorizedParty { expected: String, actual: String },
+    AuthorizedParty {
+        /// Expected value.
+        expected: String,
+        /// Actual value.
+        actual: String,
+    },
+    /// Configured issuer and token issuer mismatch.
     #[error("Configured issuer and token issuer mismatch: '{expected}', '{actual}'")]
-    Issuer { expected: String, actual: String },
+    Issuer {
+        /// Expected value.
+        expected: String,
+        /// Actual value.
+        actual: String,
+    },
+    /// Given nonce does not match token nonce.
     #[error("Given nonce does not match token nonce: '{expected}', '{actual}'")]
-    Nonce { expected: String, actual: String },
+    Nonce {
+        /// Expected value.
+        expected: String,
+        /// Actual value.
+        actual: String,
+    },
 }
 
-#[derive(Debug, Error)]
+/// Missing required token attribute.
+#[derive(Debug, Clone, Copy, Error)]
 pub enum Missing {
+    /// Token missing Audience.
     #[error("Token missing Audience")]
     Audience,
+    /// Token missing AZP.
     #[error("Token missing AZP")]
     AuthorizedParty,
+    /// Token missing Auth Time.
     #[error("Token missing Auth Time")]
     AuthTime,
+    /// Token missing Nonce.
     #[error("Token missing Nonce")]
     Nonce,
 }
 
-#[derive(Debug, Error)]
+/// Token expiration variants.
+#[derive(Debug, Clone, Copy, Error)]
 pub enum Expiry {
+    /// Token expired.
     #[error("Token expired at: {0}")]
     Expires(::chrono::DateTime<::chrono::Utc>),
+    /// Token is too old.
     #[error("Token is too old: {0}")]
     MaxAge(::chrono::Duration),
+    /// Token exp is not valid UNIX timestamp.
     #[error("Token exp is not valid UNIX timestamp: {0}")]
     NotUnix(i64),
 }
 
+/// Errors related to userinfo endpoint.
 #[derive(Debug, Error)]
 pub enum Userinfo {
+    /// Config has no userinfo url.
     #[error("Config has no userinfo url")]
     NoUrl,
+    /// The UserInfo Endpoint MUST return a content-type header to indicate
+    /// which format is being returned.
     #[error("The UserInfo Endpoint MUST return a content-type header to indicate which format is being returned")]
     MissingContentType,
+    /// Not parsable content type header.
     #[error("Not parsable content type header: {content_type}")]
-    ParseContentType { content_type: String },
+    ParseContentType {
+        /// Content type header value.
+        content_type: String,
+    },
+    /// Wrong content type header.
+    ///
+    /// The following are accepted content types: `application/json`,
+    /// `application/jwt`.
     #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json, application/jwt")]
-    WrongContentType { content_type: String, body: Vec<u8> },
+    WrongContentType {
+        /// Content type header value.
+        content_type: String,
+        /// Request body for analyze.
+        body: Vec<u8>,
+    },
+    /// Token and Userinfo Subjects mismatch.
     #[error("Token and Userinfo Subjects mismatch: '{expected}', '{actual}'")]
-    MismatchSubject { expected: String, actual: String },
+    MismatchSubject {
+        /// Expected token subject value.
+        expected: String,
+        /// Actual token subject value.
+        actual: String,
+    },
+    /// The sub (subject) Claim MUST always be returned in the UserInfo
+    /// Response.
     #[error(transparent)]
     MissingSubject(#[from] StandardClaimsSubjectMissing),
 }
 
-#[derive(Debug, Error)]
+/// The sub (subject) Claim MUST always be returned in the UserInfo Response.
+#[derive(Debug, Copy, Clone, Error)]
 #[error("The sub (subject) Claim MUST always be returned in the UserInfo Response")]
 pub struct StandardClaimsSubjectMissing;
 
+/// Introspection error details.
 #[derive(Debug, Error)]
 pub enum Introspection {
+    /// Config has no introspection url.
     #[error("Config has no introspection url")]
     NoUrl,
+    /// The Introspection Endpoint MUST return a `content-type` header to
+    /// indicate which format is being returned.
     #[error("The Introspection Endpoint MUST return a content-type header to indicate which format is being returned")]
     MissingContentType,
+    /// Not parsable content type header.
     #[error("Not parsable content type header: {content_type}")]
-    ParseContentType { content_type: String },
+    ParseContentType {
+        /// Content type header value.
+        content_type: String,
+    },
+    /// Wrong content type header.
+    ///
+    /// The following are accepted content types: `application/json`.
     #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json")]
-    WrongContentType { content_type: String, body: Vec<u8> },
+    WrongContentType {
+        /// Content type header value.
+        content_type: String,
+        /// Request body for analyze.
+        body: Vec<u8>,
+    },
 }
 
 #[cfg(test)]

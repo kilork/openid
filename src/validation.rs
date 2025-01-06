@@ -6,6 +6,7 @@ use crate::{
     Claims, Config,
 };
 
+/// Validate token issuer.
 pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(), Error> {
     if claims.iss() != &config.issuer {
         let expected = config.issuer.as_str().to_string();
@@ -16,6 +17,7 @@ pub fn validate_token_issuer<C: Claims>(claims: &C, config: &Config) -> Result<(
     Ok(())
 }
 
+/// Validate token nonce.
 pub fn validate_token_nonce<'nonce, C: Claims>(
     claims: &C,
     nonce: impl Into<Option<&'nonce str>>,
@@ -36,6 +38,7 @@ pub fn validate_token_nonce<'nonce, C: Claims>(
     Ok(())
 }
 
+/// Validate token aud.
 pub fn validate_token_aud<C: Claims>(claims: &C, client_id: &str) -> Result<(), Error> {
     if !claims.aud().contains(client_id) {
         return Err(Validation::Missing(Missing::Audience).into());
@@ -60,6 +63,7 @@ pub fn validate_token_aud<C: Claims>(claims: &C, client_id: &str) -> Result<(), 
     Ok(())
 }
 
+/// Validate token expiration against current time.
 pub fn validate_token_exp<'max_age, C: Claims>(
     claims: &C,
     max_age: impl Into<Option<&'max_age Duration>>,

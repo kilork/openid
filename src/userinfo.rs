@@ -6,7 +6,9 @@ use validator::Validate;
 use crate::{deserializers::bool_from_str_or_bool, Address, StandardClaimsSubject};
 
 /// The userinfo struct contains all possible userinfo fields regardless of
-/// scope. See: [OpenID Connect Core 1.0: Standard Claims](https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims)
+/// scope.
+///
+/// See: [OpenID Connect Core 1.0: Standard Claims](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)
 #[derive(Debug, Deserialize, Serialize, Validate, Clone, Eq, PartialEq)]
 pub struct Userinfo {
     #[serde(default)]
