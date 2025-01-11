@@ -27,5 +27,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          title: ${{ github.ref }}
+          title: Release ${{ github.ref }}
           tag: ${{ github.ref }}

@@ -1,3 +1,23 @@
 #!/bin/sh
 
-echo "release"
+set -e
+
+RELEASE_TYPE=${RELEASE_TYPE:-minor}
+cargo set-version --bump ${RELEASE_TYPE}
+VERSION=`cargo pkgid | cut -d"#" -f2`
+export OPENID_RUST_MAJOR_VERSION=`echo ${VERSION} | cut -d"." -f1,2`
+pushd ../openid-examples
+git checkout main
+git pull
+cargo upgrade -p openid@${OPENID_RUST_MAJOR_VERSION}
+cargo update
+git add .
+git commit -m"openid version ${OPENID_RUST_MAJOR_VERSION}"
+git branch v${OPENID_RUST_MAJOR_VERSION}
+git push
+popd
+handlebars-magic templates .
+git add .
+git commit "Release v${VERSION}"
+git tag v${VERSION}
+#git push && git push --tag
