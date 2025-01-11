@@ -18,6 +18,6 @@ git push
 popd
 handlebars-magic templates .
 git add .
-git commit "Release v${VERSION}"
+git commit -m"Release v${VERSION}"
 git tag v${VERSION}
-#git push && git push --tag
+git push && git push --tag
