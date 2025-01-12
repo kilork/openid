@@ -22,6 +22,6 @@ if [ "${RELEASE_TYPE}" != "patch" ]; then
 fi
 handlebars-magic templates .
 git add .
-git commit -m"Release v${VERSION}"
+git commit -m"Release ${VERSION}"
 git tag v${VERSION}
 git push && git push --tag
