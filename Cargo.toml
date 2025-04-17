@@ -20,6 +20,7 @@ microsoft = []
 uma2 = []
 native-tls = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls-tls"]
+rustls-native-roots = ["reqwest/rustls-tls-native-roots"]
 
 [dependencies]
 lazy_static = "1.4"
