@@ -42,14 +42,21 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.16"
+openid = "0.17"
 ```
 
 By default we use native tls, if you want to use `rustls`:
 
 ```toml
 [dependencies]
-openid = { version = "0.16", default-features = false, features = ["rustls"] }
+openid = { version = "0.17", default-features = false, features = ["rustls"] }
+```
+
+Alternatively, you can use `rustls` with the platform’s native certificates:
+
+```toml
+[dependencies]
+openid = { version = "0.17", default-features = false, features = ["rustls-native-roots"] }
 ```
 
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -64,7 +71,7 @@ anyhow = "1.0"
 cookie = "0.18"
 dotenv = "0.15"
 log = "0.4"
-openid = "0.16"
+openid = "0.17"
 pretty_env_logger = "0.5"
 reqwest = "0.12"
 serde = { version = "1", default-features = false, features = [ "derive" ] }
@@ -377,4 +384,4 @@ pub fn host(path: &str) -> String {
 }
 ```
 
-See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.16/examples/warp.rs)
+See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.17/examples/warp.rs)
