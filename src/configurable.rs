@@ -10,10 +10,10 @@ pub trait Configurable {
     /// # Examples
     ///
     /// ```rust, no_run
-    ///# use openid::{Configurable, Config};
-    ///# #[derive(Default)]
-    ///# struct MyType;
-    ///# impl Configurable for MyType { fn config(&self) -> &Config { todo!() }}
+    /// # use openid::{Configurable, Config};
+    /// # #[derive(Default)]
+    /// # struct MyType;
+    /// # impl Configurable for MyType { fn config(&self) -> &Config { todo!() }}
     /// let config = MyType::default().config();
     /// ```
     fn config(&self) -> &Config;
