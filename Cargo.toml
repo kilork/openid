@@ -23,7 +23,6 @@ rustls = ["reqwest/rustls-tls"]
 rustls-native-roots = ["reqwest/rustls-tls-native-roots"]
 
 [dependencies]
-lazy_static = "1.4"
 serde_json = { version = "1", default-features = false }
 base64 = "0.22"
 biscuit = "0.7"

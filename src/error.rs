@@ -25,10 +25,10 @@ impl fmt::Display for OAuth2Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{:?}", self.error)?;
         if let Some(ref description) = self.error_description {
-            write!(f, ": {}", description)?;
+            write!(f, ": {description}")?;
         }
         if let Some(ref uri) = self.error_uri {
-            write!(f, " ({})", uri)?;
+            write!(f, " ({uri})")?;
         }
         Ok(())
     }
@@ -118,13 +118,13 @@ pub enum ClientError {
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            ClientError::Io(ref err) => write!(f, "{}", err),
-            ClientError::Url(ref err) => write!(f, "{}", err),
-            ClientError::Reqwest(ref err) => write!(f, "{}", err),
-            ClientError::Json(ref err) => write!(f, "{}", err),
-            ClientError::OAuth2(ref err) => write!(f, "{}", err),
+            ClientError::Io(ref err) => write!(f, "{err}"),
+            ClientError::Url(ref err) => write!(f, "{err}"),
+            ClientError::Reqwest(ref err) => write!(f, "{err}"),
+            ClientError::Json(ref err) => write!(f, "{err}"),
+            ClientError::OAuth2(ref err) => write!(f, "{err}"),
             #[cfg(feature = "uma2")]
-            ClientError::Uma2(ref err) => write!(f, "{}", err),
+            ClientError::Uma2(ref err) => write!(f, "{err}"),
         }
     }
 }

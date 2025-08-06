@@ -31,7 +31,7 @@ impl Visitor<'_> for BoolOrStringVisitor {
         match value {
             "true" => Ok(true),
             "false" => Ok(false),
-            _s => Err(E::custom(format!("Unknown string value: {}", _s))),
+            _s => Err(E::custom(format!("Unknown string value: {_s}"))),
         }
     }
 }

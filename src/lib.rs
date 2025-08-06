@@ -10,9 +10,6 @@
     unused_qualifications,
     variant_size_differences
 )]
-#[macro_use]
-extern crate lazy_static;
-
 mod address;
 mod bearer;
 mod claims;

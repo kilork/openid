@@ -135,7 +135,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
 
     /// Constructs the auth_url to redirect a client to the provider. Options
     /// are... optional. Use them as needed. Keep the Options struct around
-    /// for authentication, or at least the nonce and max_age parameter - we
+    /// for authentication, or at least the `nonce` and `max_age` parameter - we
     /// need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
         let scope = match options.scope.as_deref() {
