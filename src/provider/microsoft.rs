@@ -1,4 +1,7 @@
-use std::pin::Pin;
+use std::{
+    future::{Future, IntoFuture},
+    pin::Pin,
+};
 
 use biscuit::CompactJson;
 use chrono::Duration;
