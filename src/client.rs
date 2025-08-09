@@ -634,7 +634,8 @@ where
         uri
     }
 
-    /// Requests an access token using an authorization code with code verifier from PKCE configuration.
+    /// Requests an access token using an authorization code with code verifier
+    /// from PKCE configuration.
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
@@ -886,7 +887,7 @@ mod tests {
     use url::Url;
 
     use super::Client;
-    use crate::provider::Provider;
+    use crate::{pkce::Pkce, provider::Provider};
 
     struct Test {
         auth_uri: Url,
@@ -912,7 +913,7 @@ mod tests {
     #[test]
     fn auth_uri() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -920,8 +921,12 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = Pkce::S256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        };
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
         );
     }
@@ -929,7 +934,7 @@ mod tests {
     #[test]
     fn auth_uri_with_redirect_uri() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -937,8 +942,12 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = Pkce::S256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        };
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&redirect_uri=http%3A%2F%2Fexample.com%2Foauth2%2Fcallback",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&redirect_uri=http%3A%2F%2Fexample.com%2Foauth2%2Fcallback&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
         );
     }
@@ -946,7 +955,7 @@ mod tests {
     #[test]
     fn auth_uri_with_scope() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -954,8 +963,12 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = Pkce::S256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        };
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&scope=baz",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&scope=baz",
             client.auth_uri(Some("baz"), None).as_str()
         );
     }
@@ -963,7 +976,7 @@ mod tests {
     #[test]
     fn auth_uri_with_state() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -971,8 +984,12 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = Pkce::S256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        };
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&state=baz",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&state=baz",
             client.auth_uri(None, Some("baz")).as_str()
         );
     }

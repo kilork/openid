@@ -13,7 +13,8 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 pub enum Pkce {
     /// S256 code challenge method.
     ///
-    /// The S256 method uses a SHA-256 hash of the code verifier to generate the code challenge.
+    /// The S256 method uses a SHA-256 hash of the code verifier to generate the
+    /// code challenge.
     S256 {
         /// A cryptographically random string that is used to correlate the
         /// authorization request to the token request.
