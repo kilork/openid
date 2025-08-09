@@ -6,7 +6,7 @@ Proof Key for Code Exchange by OAuth Public Clients (PKCE) is a method for publi
 See [RFC 7636](https://tools.ietf.org/html/rfc7636) for more details.
 */
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
 /// PKCE - Proof Key for Code Exchange by OAuth Public Clients
 #[derive(Debug, Clone)]

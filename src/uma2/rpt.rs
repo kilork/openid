@@ -4,9 +4,9 @@ use serde_json::Value;
 use url::form_urlencoded::Serializer;
 
 use crate::{
-    Bearer, Claims, Client, OAuth2Error, Provider,
     error::ClientError,
     uma2::{error::Uma2Error::*, permission_ticket::Uma2PermissionTicketRequest, *},
+    Bearer, Claims, Client, OAuth2Error, Provider,
 };
 
 pub enum Uma2AuthenticationMethod {

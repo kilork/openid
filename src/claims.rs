@@ -1,6 +1,7 @@
 use base64::{
-    Engine as _, alphabet,
+    alphabet,
     engine::{GeneralPurpose, GeneralPurposeConfig},
+    Engine as _,
 };
 use biscuit::SingleOrMultiple;
 use url::Url;

@@ -1,5 +1,5 @@
 use de::Visitor;
-use serde::{Deserializer, de};
+use serde::{de, Deserializer};
 
 pub fn bool_from_str_or_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where

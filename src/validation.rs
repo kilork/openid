@@ -2,8 +2,8 @@ use biscuit::SingleOrMultiple;
 use chrono::{DateTime, Duration, Utc};
 
 use crate::{
-    Claims, Config,
     error::{Error, Expiry, Mismatch, Missing, Validation},
+    Claims, Config,
 };
 
 /// Validate token issuer.

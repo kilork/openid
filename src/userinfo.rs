@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::Validate;
 
-use crate::{Address, StandardClaimsSubject, deserializers::bool_from_str_or_bool};
+use crate::{deserializers::bool_from_str_or_bool, Address, StandardClaimsSubject};
 
 /// The userinfo struct contains all possible userinfo fields regardless of
 /// scope.

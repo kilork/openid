@@ -1,12 +1,12 @@
 use biscuit::CompactJson;
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    Claims, Client, OAuth2Error, Provider,
     error::ClientError,
-    uma2::{Uma2Provider, error::Uma2Error::*},
+    uma2::{error::Uma2Error::*, Uma2Provider},
+    Claims, Client, OAuth2Error, Provider,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]

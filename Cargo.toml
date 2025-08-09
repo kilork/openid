@@ -2,7 +2,7 @@
 name = "openid"
 version = "0.17.0"
 authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
-edition = "2024"
+edition = "2021"
 categories = ["authentication"]
 description = """
 OpenID Connect & Discovery client library using async / await.
@@ -12,7 +12,7 @@ keywords = ["authentication", "authorization", "oauth", "openid", "uma2"]
 license = "Unlicense OR MIT"
 readme = "README.md"
 repository = "https://github.com/kilork/openid"
-rust-version = "1.88.0"
+rust-version = "1.84.0"
 
 [features]
 default = ["native-tls"]

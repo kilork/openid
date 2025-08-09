@@ -4,10 +4,10 @@ use biscuit::CompactJson;
 use chrono::Duration;
 
 use crate::{
-    Claims, Configurable, IdToken, Provider, Token,
     client::Client,
     error::Error,
     validation::{validate_token_aud, validate_token_exp, validate_token_nonce},
+    Claims, Configurable, IdToken, Provider, Token,
 };
 
 /// Microsoft OIDC provider, it skips issuer validation.

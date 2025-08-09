@@ -1,5 +1,5 @@
-use biscuit::CompactJson;
 pub use biscuit::jws::Compact as Jws;
+use biscuit::CompactJson;
 
 use crate::{Bearer, Claims, IdToken, StandardClaims};
 
