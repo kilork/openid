@@ -1,33 +1,39 @@
-use std::{borrow::Cow, marker::PhantomData};
+use std::{
+    borrow::Cow,
+    future::{Future, IntoFuture},
+    marker::PhantomData,
+    pin::Pin,
+};
 
 use biscuit::{
+    CompactJson, Empty,
     jwa::{self, SignatureAlgorithm},
     jwk::{AlgorithmParameters, JWKSet},
     jws::{Compact, Secret},
-    CompactJson, Empty,
 };
 use chrono::Duration;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde_json::Value;
-use url::{form_urlencoded::Serializer, Url};
+use url::{Url, form_urlencoded::Serializer};
 
 use crate::{
+    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
+    StandardClaims, Token, TokenIntrospection, Userinfo,
     bearer::TemporalBearerGuard,
     discovered,
     error::{
         ClientError, Decode, Error, Introspection as ErrorIntrospection, Jose,
         Userinfo as ErrorUserinfo,
     },
+    pkce::{Pkce, generate_s256_pkce},
     standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
     },
-    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
-    StandardClaims, Token, TokenIntrospection, Userinfo,
 };
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OAuth provider.
     pub provider: P,
@@ -48,6 +54,9 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OIDC discovery process.
     pub jwks: Option<JWKSet<Empty>>,
 
+    /// PKCE parameters.
+    pub pkce: Pkce,
+
     marker: PhantomData<C>,
 }
 
@@ -61,25 +70,6 @@ macro_rules! wrong_key {
         }
         .into())
     };
-}
-
-/// Implement clone if the provider can be cloned.
-impl<C: CompactJson + Claims, P: Clone> Clone for Client<P, C> {
-    fn clone(&self) -> Self {
-        let jwks = self.jwks.as_ref().map(|jwks| JWKSet {
-            keys: jwks.keys.clone(),
-        });
-
-        Self {
-            provider: self.provider.clone(),
-            client_id: self.client_id.clone(),
-            client_secret: self.client_secret.clone(),
-            redirect_uri: self.redirect_uri.as_ref().cloned(),
-            http_client: self.http_client.clone(),
-            jwks,
-            marker: PhantomData,
-        }
-    }
 }
 
 impl<C: CompactJson + Claims> Client<Discovered, C> {
@@ -121,10 +111,8 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 
 impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
-    pub fn redirect_url(&self) -> &str {
-        self.redirect_uri
-            .as_ref()
-            .expect("We always require a redirect to construct client!")
+    pub fn redirect_url(&self) -> Option<&str> {
+        self.redirect_uri.as_deref()
     }
 
     /// A reference to the config document of the provider obtained via
@@ -191,19 +179,18 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
 
     /// Given an auth_code and auth options, request the token, decode, and
     /// validate it.
-    pub async fn authenticate(
-        &self,
-        auth_code: &str,
-        nonce: impl Into<Option<&str>>,
-        max_age: impl Into<Option<&Duration>>,
-    ) -> Result<Token<C>, Error> {
-        let bearer = self.request_token(auth_code).await.map_err(Error::from)?;
-        let mut token: Token<C> = bearer.into();
-        if let Some(id_token) = token.id_token.as_mut() {
-            self.decode_token(id_token)?;
-            self.validate_token(id_token, nonce, max_age)?;
+    pub fn authenticate<'c>(
+        &'c self,
+        auth_code: &'c str,
+        nonce: impl Into<Option<&'c str>>,
+        max_age: impl Into<Option<&'c Duration>>,
+    ) -> Authenticate<'c, P, C> {
+        Authenticate {
+            client: self,
+            request_token: self.request_token(auth_code),
+            nonce: nonce.into(),
+            max_age: max_age.into(),
         }
-        Ok(token)
     }
 
     /// Mutates a Compact::encoded Token to Compact::decoded.
@@ -231,7 +218,9 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             return Ok(());
         }
 
-        let jwks = self.jwks.as_ref().unwrap();
+        let Some(jwks) = self.jwks.as_ref() else {
+            return Err(Decode::EmptySet.into());
+        };
 
         let header = token.unverified_header()?;
         // If there is more than one key, the token MUST have a key id
@@ -241,7 +230,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         } else {
             // TODO We would want to verify the keyset is >1 in the constructor
             // rather than every decode call, but we can't return an error in new().
-            jwks.keys.first().as_ref().ok_or(Decode::EmptySet)?
+            jwks.keys.first().ok_or(Decode::EmptySet)?
         };
 
         if let Some(alg) = key.common.algorithm.as_ref() {
@@ -441,7 +430,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                             content_type: content_type.to_string(),
                             body: response.bytes().await?.to_vec(),
                         }
-                        .into())
+                        .into());
                     }
                 };
 
@@ -537,7 +526,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                                 content_type: content_type.to_string(),
                                 body: response.bytes().await?.to_vec(),
                             }
-                            .into())
+                            .into());
                         }
                     };
 
@@ -584,6 +573,7 @@ where
             redirect_uri: redirect_uri.into(),
             http_client,
             jwks,
+            pkce: generate_s256_pkce(),
             marker: PhantomData,
         }
     }
@@ -631,6 +621,9 @@ where
                 query.append_pair("redirect_uri", redirect_uri);
             }
 
+            query.append_pair("code_challenge", self.pkce.code_challenge());
+            query.append_pair("code_challenge_method", self.pkce.code_challenge_method());
+
             self.append_scope(&mut query, scope);
 
             if let Some(state) = state.into() {
@@ -643,14 +636,37 @@ where
 
     /// Requests an access token using an authorization code.
     ///
+    /// Could be accomplished by calling `code_verifier` to use PKCE.
+    ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
-    pub async fn request_token(&self, code: &str) -> Result<Bearer, ClientError> {
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub fn request_token<'c>(&'c self, code: &'c str) -> RequestToken<'c, P, C> {
+        RequestToken {
+            client: self,
+            code,
+            code_verifier: Some(self.pkce.code_verifier().into()),
+        }
+    }
+
+    /// Requests an access token using an authorization code with optional code verifier.
+    ///
+    /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub async fn request_token_ext(
+        &self,
+        code: &str,
+        code_verifier: Option<String>,
+    ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
         // an `await` boundary by localizing it to this inner scope.
         let body = {
             let mut body = Serializer::new(String::new());
             body.append_pair("grant_type", "authorization_code");
             body.append_pair("code", code);
+
+            if let Some(code_verifier) = code_verifier.as_deref() {
+                body.append_pair("code_verifier", code_verifier);
+            }
 
             if let Some(ref redirect_uri) = self.redirect_uri {
                 body.append_pair("redirect_uri", redirect_uri);
@@ -740,7 +756,7 @@ where
                     .as_ref()
                     .refresh_token
                     .as_deref()
-                    .expect("No refresh_token field"),
+                    .expect("refresh_token field"),
             );
 
             self.append_scope(&mut body, scope);
@@ -811,6 +827,86 @@ where
         if let Some(scope) = scope.into() {
             body.append_pair("scope", scope);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Authenticate<'c, P, C: CompactJson + Claims> {
+    pub(crate) client: &'c Client<P, C>,
+    pub(crate) request_token: RequestToken<'c, P, C>,
+    pub(crate) nonce: Option<&'c str>,
+    pub(crate) max_age: Option<&'c Duration>,
+}
+
+impl<'c, P, C> Authenticate<'c, P, C>
+where
+    C: CompactJson + Claims,
+{
+    /// Set the code verifier for the request to token endpoint.
+    ///
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
+        self.request_token = self.request_token.code_verifier(code_verifier);
+        self
+    }
+}
+
+impl<'c, P, C> IntoFuture for Authenticate<'c, P, C>
+where
+    C: CompactJson + Claims + Sync,
+    P: Configurable + Provider + Sync,
+{
+    type Output = Result<Token<C>, Error>;
+
+    type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        let Self {
+            client,
+            request_token,
+            nonce,
+            max_age,
+        } = self;
+        Box::pin(async move {
+            let bearer = request_token.await.map_err(Error::from)?;
+            let mut token: Token<C> = bearer.into();
+            if let Some(id_token) = token.id_token.as_mut() {
+                client.decode_token(id_token)?;
+                client.validate_token(id_token, nonce, max_age)?;
+            }
+            Ok(token)
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct RequestToken<'c, P, C: CompactJson + Claims> {
+    client: &'c Client<P, C>,
+    code: &'c str,
+    code_verifier: Option<String>,
+}
+
+impl<'c, P, C: CompactJson + Claims> RequestToken<'c, P, C> {
+    /// Set the code verifier for the request to token endpoint.
+    ///
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
+        self.code_verifier = code_verifier;
+        self
+    }
+}
+
+impl<'c, P, C> IntoFuture for RequestToken<'c, P, C>
+where
+    C: CompactJson + Claims + Sync,
+    P: Provider + Sync,
+{
+    type Output = Result<Bearer, ClientError>;
+
+    type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(self.client.request_token_ext(self.code, self.code_verifier))
     }
 }
 

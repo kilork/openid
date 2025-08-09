@@ -1,31 +1,74 @@
+use std::pin::Pin;
+
 use biscuit::CompactJson;
 use chrono::Duration;
 
 use crate::{
+    Claims, Configurable, IdToken, Provider, Token,
     client::Client,
     error::Error,
     validation::{validate_token_aud, validate_token_exp, validate_token_nonce},
-    Claims, Configurable, IdToken, Provider, Token,
 };
+
+/// Microsoft OIDC provider, it skips issuer validation.
+///
+/// Could be accomplished by calling `code_verifier` to use PKCE.
+#[derive(Debug)]
+pub struct Authenticate<'c, P, C: CompactJson + Claims>(crate::client::Authenticate<'c, P, C>);
+
+impl<'c, P, C> Authenticate<'c, P, C>
+where
+    C: CompactJson + Claims,
+{
+    /// Set the code verifier for the request to token endpoint.
+    ///
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
+        self.0 = self.0.code_verifier(code_verifier);
+        self
+    }
+}
+
+impl<'c, P, C> IntoFuture for Authenticate<'c, P, C>
+where
+    C: CompactJson + Claims + Sync,
+    P: Configurable + Provider + Sync,
+{
+    type Output = Result<Token<C>, Error>;
+
+    type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        let crate::client::Authenticate {
+            client,
+            request_token,
+            nonce,
+            max_age,
+        } = self.0;
+        Box::pin(async move {
+            let bearer = request_token.await.map_err(Error::from)?;
+            let mut token: Token<C> = bearer.into();
+            if let Some(id_token) = token.id_token.as_mut() {
+                client.decode_token(id_token)?;
+                validate_token(client, id_token, nonce, max_age)?;
+            }
+            Ok(token)
+        })
+    }
+}
 
 /// Given an auth_code and auth options, request the token, decode, and validate
 /// it. This validation is specific to Microsoft OIDC provider, it skips issuer
 /// validation.
-pub async fn authenticate<C: CompactJson + Claims, P: Provider + Configurable>(
-    client: &Client<P, C>,
-    auth_code: &str,
-    nonce: Option<&str>,
-    max_age: Option<&Duration>,
-) -> Result<Token<C>, Error> {
-    let bearer = client.request_token(auth_code).await.map_err(Error::from)?;
-    let mut token: Token<C> = bearer.into();
-
-    if let Some(mut id_token) = token.id_token.as_mut() {
-        client.decode_token(&mut id_token)?;
-        validate_token(client, &id_token, nonce, max_age)?;
-    }
-
-    Ok(token)
+///
+/// Could be accomplished by calling `code_verifier` to use PKCE.
+pub fn authenticate<'c, C: CompactJson + Claims, P: Provider + Configurable>(
+    client: &'c Client<P, C>,
+    auth_code: &'c str,
+    nonce: Option<&'c str>,
+    max_age: Option<&'c Duration>,
+) -> Authenticate<'c, P, C> {
+    Authenticate(client.authenticate(auth_code, nonce, max_age))
 }
 
 /// Validate a decoded token for Microsoft OpenID. If you don't get an error,

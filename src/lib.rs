@@ -22,6 +22,7 @@ mod discovered;
 mod display;
 pub mod error;
 mod options;
+pub mod pkce;
 mod prompt;
 pub mod provider;
 mod standard_claims;
@@ -38,7 +39,7 @@ pub mod validation;
 #[cfg(any(feature = "uma2", doc))]
 pub mod uma2;
 
-pub use ::biscuit::{jws::Compact as Jws, Compact, CompactJson, Empty, SingleOrMultiple};
+pub use ::biscuit::{Compact, CompactJson, Empty, SingleOrMultiple, jws::Compact as Jws};
 pub use address::Address;
 pub use bearer::{Bearer, TemporalBearerGuard};
 pub use claims::Claims;

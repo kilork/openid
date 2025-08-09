@@ -10,7 +10,7 @@ mod rpt;
 
 pub use claim_token_format::Uma2ClaimTokenFormat;
 pub use config::Uma2Config;
-pub use discovered::{discover_uma2, DiscoveredUma2};
+pub use discovered::{DiscoveredUma2, discover_uma2};
 pub use error::Uma2Error;
 pub use permission_association::{
     Uma2PermissionAssociation, Uma2PermissionDecisionStrategy, Uma2PermissionLogic,

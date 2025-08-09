@@ -2,9 +2,9 @@ use biscuit::CompactJson;
 use url::Url;
 
 use crate::{
+    Claims, Client, Config, Configurable, Provider,
     error::Error,
     uma2::{Uma2Config, Uma2Provider},
-    Claims, Client, Config, Configurable, Provider,
 };
 
 pub struct DiscoveredUma2(Uma2Config);

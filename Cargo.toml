@@ -2,7 +2,7 @@
 name = "openid"
 version = "0.17.0"
 authors = ["Alexander Korolev <alexander.korolev.germany@gmail.com>"]
-edition = "2021"
+edition = "2024"
 categories = ["authentication"]
 description = """
 OpenID Connect & Discovery client library using async / await.
@@ -12,10 +12,11 @@ keywords = ["authentication", "authorization", "oauth", "openid", "uma2"]
 license = "Unlicense OR MIT"
 readme = "README.md"
 repository = "https://github.com/kilork/openid"
-rust-version = "1.84.0"
+rust-version = "1.88.0"
 
 [features]
 default = ["native-tls"]
+all = ["microsoft", "uma2", "native-tls", "rustls-native-roots"]
 microsoft = []
 uma2 = []
 native-tls = ["reqwest/native-tls"]
@@ -29,6 +30,8 @@ biscuit = "0.7"
 thiserror = "1"
 validator = { version = "0.19", features = ["derive"] }
 mime = "0.3"
+getrandom = { version = "0.3", default-features = false, features = ["std"] }
+hmac-sha256 = "1.1.12"
 
 [dependencies.url]
 version = "2"
