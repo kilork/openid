@@ -15,7 +15,7 @@ repository = "https://github.com/kilork/openid"
 rust-version = "1.88.0"
 
 [features]
-default = ["native-tls"]
+default = ["native-tls", "all"]
 all = ["microsoft", "uma2", "native-tls", "rustls-native-roots"]
 microsoft = []
 uma2 = []

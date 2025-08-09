@@ -634,28 +634,22 @@ where
         uri
     }
 
-    /// Requests an access token using an authorization code.
-    ///
-    /// Could be accomplished by calling `code_verifier` to use PKCE.
+    /// Requests an access token using an authorization code with code verifier from PKCE configuration.
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
     pub fn request_token<'c>(&'c self, code: &'c str) -> RequestToken<'c, P, C> {
-        RequestToken {
-            client: self,
-            code,
-            code_verifier: Some(self.pkce.code_verifier().into()),
-        }
+        RequestToken { client: self, code }
     }
 
-    /// Requests an access token using an authorization code with optional code verifier.
+    /// Requests an access token using an authorization code with code verifier.
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
     pub async fn request_token_ext(
         &self,
         code: &str,
-        code_verifier: Option<String>,
+        code_verifier: &str,
     ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
         // an `await` boundary by localizing it to this inner scope.
@@ -664,9 +658,7 @@ where
             body.append_pair("grant_type", "authorization_code");
             body.append_pair("code", code);
 
-            if let Some(code_verifier) = code_verifier.as_deref() {
-                body.append_pair("code_verifier", code_verifier);
-            }
+            body.append_pair("code_verifier", code_verifier);
 
             if let Some(ref redirect_uri) = self.redirect_uri {
                 body.append_pair("redirect_uri", redirect_uri);
@@ -838,19 +830,6 @@ pub struct Authenticate<'c, P, C: CompactJson + Claims> {
     pub(crate) max_age: Option<&'c Duration>,
 }
 
-impl<'c, P, C> Authenticate<'c, P, C>
-where
-    C: CompactJson + Claims,
-{
-    /// Set the code verifier for the request to token endpoint.
-    ///
-    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
-    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
-        self.request_token = self.request_token.code_verifier(code_verifier);
-        self
-    }
-}
-
 impl<'c, P, C> IntoFuture for Authenticate<'c, P, C>
 where
     C: CompactJson + Claims + Sync,
@@ -883,17 +862,6 @@ where
 pub struct RequestToken<'c, P, C: CompactJson + Claims> {
     client: &'c Client<P, C>,
     code: &'c str,
-    code_verifier: Option<String>,
-}
-
-impl<'c, P, C: CompactJson + Claims> RequestToken<'c, P, C> {
-    /// Set the code verifier for the request to token endpoint.
-    ///
-    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
-    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
-        self.code_verifier = code_verifier;
-        self
-    }
 }
 
 impl<'c, P, C> IntoFuture for RequestToken<'c, P, C>
@@ -906,7 +874,10 @@ where
     type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.client.request_token_ext(self.code, self.code_verifier))
+        Box::pin(
+            self.client
+                .request_token_ext(self.code, self.client.pkce.code_verifier()),
+        )
     }
 }
 

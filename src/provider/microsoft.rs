@@ -11,23 +11,8 @@ use crate::{
 };
 
 /// Microsoft OIDC provider, it skips issuer validation.
-///
-/// Could be accomplished by calling `code_verifier` to use PKCE.
 #[derive(Debug)]
 pub struct Authenticate<'c, P, C: CompactJson + Claims>(crate::client::Authenticate<'c, P, C>);
-
-impl<'c, P, C> Authenticate<'c, P, C>
-where
-    C: CompactJson + Claims,
-{
-    /// Set the code verifier for the request to token endpoint.
-    ///
-    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
-    pub fn code_verifier(mut self, code_verifier: Option<String>) -> Self {
-        self.0 = self.0.code_verifier(code_verifier);
-        self
-    }
-}
 
 impl<'c, P, C> IntoFuture for Authenticate<'c, P, C>
 where
@@ -60,8 +45,6 @@ where
 /// Given an auth_code and auth options, request the token, decode, and validate
 /// it. This validation is specific to Microsoft OIDC provider, it skips issuer
 /// validation.
-///
-/// Could be accomplished by calling `code_verifier` to use PKCE.
 pub fn authenticate<'c, C: CompactJson + Claims, P: Provider + Configurable>(
     client: &'c Client<P, C>,
     auth_code: &'c str,

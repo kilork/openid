@@ -12,7 +12,7 @@ Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-
 
 Implements [OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662).
 
-Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636). If you want to use PKCE, you need to provide a `code_verifier` when requesting an access token. For discovered clients, the `code_challenge` and `code_challenge_method` are automatically generated if discovered metadata has `code_challenge_methods_supported` with `S256`.
+Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636). PKCE is enabled by default.
 
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
