@@ -35,7 +35,7 @@ impl Pkce {
     pub fn code_challenge(&self) -> &str {
         match self {
             Pkce::S256(pkce) => &pkce.code_challenge,
-            Pkce::Plain(code_verifier) => code_verifier,
+            Pkce::Plain(code_challenge) => code_challenge,
         }
     }
 
