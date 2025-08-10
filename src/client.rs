@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    future::{Future, IntoFuture},
-    marker::PhantomData,
-    pin::Pin,
-};
+use std::{borrow::Cow, marker::PhantomData};
 
 use biscuit::{
     jwa::{self, SignatureAlgorithm},
@@ -179,18 +174,19 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
 
     /// Given an auth_code and auth options, request the token, decode, and
     /// validate it.
-    pub fn authenticate<'c>(
-        &'c self,
-        auth_code: &'c str,
-        nonce: impl Into<Option<&'c str>>,
-        max_age: impl Into<Option<&'c Duration>>,
-    ) -> Authenticate<'c, P, C> {
-        Authenticate {
-            client: self,
-            request_token: self.request_token(auth_code),
-            nonce: nonce.into(),
-            max_age: max_age.into(),
+    pub async fn authenticate(
+        &self,
+        auth_code: &str,
+        nonce: impl Into<Option<&str>>,
+        max_age: impl Into<Option<&Duration>>,
+    ) -> Result<Token<C>, Error> {
+        let bearer = self.request_token(auth_code).await.map_err(Error::from)?;
+        let mut token: Token<C> = bearer.into();
+        if let Some(id_token) = token.id_token.as_mut() {
+            self.decode_token(id_token)?;
+            self.validate_token(id_token, nonce, max_age)?;
         }
+        Ok(token)
     }
 
     /// Mutates a Compact::encoded Token to Compact::decoded.
@@ -639,15 +635,16 @@ where
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
-    pub fn request_token<'c>(&'c self, code: &'c str) -> RequestToken<'c, P, C> {
-        RequestToken { client: self, code }
+    pub async fn request_token(&self, code: &str) -> Result<Bearer, ClientError> {
+        self.request_token_pkce(code, self.pkce.code_verifier())
+            .await
     }
 
     /// Requests an access token using an authorization code with code verifier.
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
-    pub async fn request_token_ext(
+    pub async fn request_token_pkce(
         &self,
         code: &str,
         code_verifier: &str,
@@ -820,65 +817,6 @@ where
         if let Some(scope) = scope.into() {
             body.append_pair("scope", scope);
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct Authenticate<'c, P, C: CompactJson + Claims> {
-    pub(crate) client: &'c Client<P, C>,
-    pub(crate) request_token: RequestToken<'c, P, C>,
-    pub(crate) nonce: Option<&'c str>,
-    pub(crate) max_age: Option<&'c Duration>,
-}
-
-impl<'c, P, C> IntoFuture for Authenticate<'c, P, C>
-where
-    C: CompactJson + Claims + Sync,
-    P: Configurable + Provider + Sync,
-{
-    type Output = Result<Token<C>, Error>;
-
-    type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        let Self {
-            client,
-            request_token,
-            nonce,
-            max_age,
-        } = self;
-        Box::pin(async move {
-            let bearer = request_token.await.map_err(Error::from)?;
-            let mut token: Token<C> = bearer.into();
-            if let Some(id_token) = token.id_token.as_mut() {
-                client.decode_token(id_token)?;
-                client.validate_token(id_token, nonce, max_age)?;
-            }
-            Ok(token)
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct RequestToken<'c, P, C: CompactJson + Claims> {
-    client: &'c Client<P, C>,
-    code: &'c str,
-}
-
-impl<'c, P, C> IntoFuture for RequestToken<'c, P, C>
-where
-    C: CompactJson + Claims + Sync,
-    P: Provider + Sync,
-{
-    type Output = Result<Bearer, ClientError>;
-
-    type IntoFuture = Pin<Box<dyn 'c + Send + Future<Output = Self::Output>>>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        Box::pin(
-            self.client
-                .request_token_ext(self.code, self.client.pkce.code_verifier()),
-        )
     }
 }
 
