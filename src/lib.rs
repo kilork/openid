@@ -10,9 +10,6 @@
     unused_qualifications,
     variant_size_differences
 )]
-#[macro_use]
-extern crate lazy_static;
-
 mod address;
 mod bearer;
 mod claims;
@@ -25,6 +22,7 @@ mod discovered;
 mod display;
 pub mod error;
 mod options;
+pub mod pkce;
 mod prompt;
 pub mod provider;
 mod standard_claims;
@@ -53,6 +51,7 @@ pub use discovered::Discovered;
 pub use display::Display;
 pub use error::{OAuth2Error, OAuth2ErrorCode};
 pub use options::Options;
+pub use pkce::{generate_s256_pkce, Pkce, PkceSha256};
 pub use prompt::Prompt;
 pub use provider::Provider;
 pub use standard_claims::StandardClaims;

@@ -1,13 +1,15 @@
 /*!
 OAuth 2.0 providers.
 */
+use std::sync::LazyLock;
+
+use url::Url;
+
 /// Microsoft OpenID Connect.
 ///
 /// See [Microsoft identity platform and OpenID Connect protocol](https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc)
 #[cfg(any(feature = "microsoft", doc))]
 pub mod microsoft;
-
-use url::Url;
 
 /// OAuth 2.0 providers.
 pub trait Provider {
@@ -37,6 +39,8 @@ pub trait Provider {
 /// See [Using OAuth 2.0 to Access Google
 /// APIs](https://developers.google.com/identity/protocols/OAuth2).
 pub mod google {
+    use std::sync::LazyLock;
+
     use url::Url;
 
     use super::Provider;
@@ -56,12 +60,10 @@ pub mod google {
     /// [uri]: https://developers.google.com/identity/protocols/OAuth2InstalledApp#choosingredirecturi
     pub const REDIRECT_URI_OOB_AUTO: &str = "urn:ietf:wg:oauth:2.0:oob:auto";
 
-    lazy_static! {
-        static ref AUTH_URI: Url =
-            Url::parse("https://accounts.google.com/o/oauth2/v2/auth").unwrap();
-        static ref TOKEN_URI: Url =
-            Url::parse("https://www.googleapis.com/oauth2/v4/token").unwrap();
-    }
+    static AUTH_URI: LazyLock<Url> =
+        LazyLock::new(|| Url::parse("https://accounts.google.com/o/oauth2/v2/auth").unwrap());
+    static TOKEN_URI: LazyLock<Url> =
+        LazyLock::new(|| Url::parse("https://www.googleapis.com/oauth2/v4/token").unwrap());
 
     /// Google OAuth 2.0 provider for web applications.
     ///
@@ -94,15 +96,6 @@ pub mod google {
     }
 }
 
-lazy_static! {
-    static ref GITHUB_AUTH_URI: Url =
-        Url::parse("https://github.com/login/oauth/authorize").unwrap();
-    static ref GITHUB_TOKEN_URI: Url =
-        Url::parse("https://github.com/login/oauth/access_token").unwrap();
-    static ref IMGUR_AUTH_URI: Url = Url::parse("https://api.imgur.com/oauth2/authorize").unwrap();
-    static ref IMGUR_TOKEN_URI: Url = Url::parse("https://api.imgur.com/oauth2/token").unwrap();
-}
-
 /// GitHub OAuth 2.0 provider.
 ///
 /// See [OAuth, GitHub Developer Guide](https://developer.github.com/v3/oauth/).
@@ -110,9 +103,13 @@ lazy_static! {
 pub struct GitHub;
 impl Provider for GitHub {
     fn auth_uri(&self) -> &Url {
+        static GITHUB_AUTH_URI: LazyLock<Url> =
+            LazyLock::new(|| Url::parse("https://github.com/login/oauth/authorize").unwrap());
         &GITHUB_AUTH_URI
     }
     fn token_uri(&self) -> &Url {
+        static GITHUB_TOKEN_URI: LazyLock<Url> =
+            LazyLock::new(|| Url::parse("https://github.com/login/oauth/access_token").unwrap());
         &GITHUB_TOKEN_URI
     }
 }
@@ -124,9 +121,13 @@ impl Provider for GitHub {
 pub struct Imgur;
 impl Provider for Imgur {
     fn auth_uri(&self) -> &Url {
+        static IMGUR_AUTH_URI: LazyLock<Url> =
+            LazyLock::new(|| Url::parse("https://api.imgur.com/oauth2/authorize").unwrap());
         &IMGUR_AUTH_URI
     }
     fn token_uri(&self) -> &Url {
+        static IMGUR_TOKEN_URI: LazyLock<Url> =
+            LazyLock::new(|| Url::parse("https://api.imgur.com/oauth2/token").unwrap());
         &IMGUR_TOKEN_URI
     }
 }

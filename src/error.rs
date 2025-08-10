@@ -25,10 +25,10 @@ impl fmt::Display for OAuth2Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{:?}", self.error)?;
         if let Some(ref description) = self.error_description {
-            write!(f, ": {}", description)?;
+            write!(f, ": {description}")?;
         }
         if let Some(ref uri) = self.error_uri {
-            write!(f, " ({})", uri)?;
+            write!(f, " ({uri})")?;
         }
         Ok(())
     }
@@ -118,13 +118,13 @@ pub enum ClientError {
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
-            ClientError::Io(ref err) => write!(f, "{}", err),
-            ClientError::Url(ref err) => write!(f, "{}", err),
-            ClientError::Reqwest(ref err) => write!(f, "{}", err),
-            ClientError::Json(ref err) => write!(f, "{}", err),
-            ClientError::OAuth2(ref err) => write!(f, "{}", err),
+            ClientError::Io(ref err) => write!(f, "{err}"),
+            ClientError::Url(ref err) => write!(f, "{err}"),
+            ClientError::Reqwest(ref err) => write!(f, "{err}"),
+            ClientError::Json(ref err) => write!(f, "{err}"),
+            ClientError::OAuth2(ref err) => write!(f, "{err}"),
             #[cfg(feature = "uma2")]
-            ClientError::Uma2(ref err) => write!(f, "{}", err),
+            ClientError::Uma2(ref err) => write!(f, "{err}"),
         }
     }
 }
@@ -310,7 +310,9 @@ pub enum Userinfo {
     NoUrl,
     /// The UserInfo Endpoint MUST return a content-type header to indicate
     /// which format is being returned.
-    #[error("The UserInfo Endpoint MUST return a content-type header to indicate which format is being returned")]
+    #[error(
+        "The UserInfo Endpoint MUST return a content-type header to indicate which format is being returned"
+    )]
     MissingContentType,
     /// Not parsable content type header.
     #[error("Not parsable content type header: {content_type}")]
@@ -322,7 +324,9 @@ pub enum Userinfo {
     ///
     /// The following are accepted content types: `application/json`,
     /// `application/jwt`.
-    #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json, application/jwt")]
+    #[error(
+        "Wrong content type header: {content_type}. The following are accepted content types: application/json, application/jwt"
+    )]
     WrongContentType {
         /// Content type header value.
         content_type: String,
@@ -356,7 +360,9 @@ pub enum Introspection {
     NoUrl,
     /// The Introspection Endpoint MUST return a `content-type` header to
     /// indicate which format is being returned.
-    #[error("The Introspection Endpoint MUST return a content-type header to indicate which format is being returned")]
+    #[error(
+        "The Introspection Endpoint MUST return a content-type header to indicate which format is being returned"
+    )]
     MissingContentType,
     /// Not parsable content type header.
     #[error("Not parsable content type header: {content_type}")]
@@ -367,7 +373,9 @@ pub enum Introspection {
     /// Wrong content type header.
     ///
     /// The following are accepted content types: `application/json`.
-    #[error("Wrong content type header: {content_type}. The following are accepted content types: application/json")]
+    #[error(
+        "Wrong content type header: {content_type}. The following are accepted content types: application/json"
+    )]
     WrongContentType {
         /// Content type header value.
         content_type: String,

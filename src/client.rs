@@ -18,6 +18,7 @@ use crate::{
         ClientError, Decode, Error, Introspection as ErrorIntrospection, Jose,
         Userinfo as ErrorUserinfo,
     },
+    pkce::{generate_s256_pkce, Pkce},
     standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
@@ -27,7 +28,7 @@ use crate::{
 };
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OAuth provider.
     pub provider: P,
@@ -48,6 +49,9 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OIDC discovery process.
     pub jwks: Option<JWKSet<Empty>>,
 
+    /// PKCE parameters.
+    pub pkce: Option<Pkce>,
+
     marker: PhantomData<C>,
 }
 
@@ -61,25 +65,6 @@ macro_rules! wrong_key {
         }
         .into())
     };
-}
-
-/// Implement clone if the provider can be cloned.
-impl<C: CompactJson + Claims, P: Clone> Clone for Client<P, C> {
-    fn clone(&self) -> Self {
-        let jwks = self.jwks.as_ref().map(|jwks| JWKSet {
-            keys: jwks.keys.clone(),
-        });
-
-        Self {
-            provider: self.provider.clone(),
-            client_id: self.client_id.clone(),
-            client_secret: self.client_secret.clone(),
-            redirect_uri: self.redirect_uri.as_ref().cloned(),
-            http_client: self.http_client.clone(),
-            jwks,
-            marker: PhantomData,
-        }
-    }
 }
 
 impl<C: CompactJson + Claims> Client<Discovered, C> {
@@ -121,10 +106,8 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
 
 impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// Passthrough to the redirect_url stored in inth_oauth2 as a str.
-    pub fn redirect_url(&self) -> &str {
-        self.redirect_uri
-            .as_ref()
-            .expect("We always require a redirect to construct client!")
+    pub fn redirect_url(&self) -> Option<&str> {
+        self.redirect_uri.as_deref()
     }
 
     /// A reference to the config document of the provider obtained via
@@ -135,7 +118,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
 
     /// Constructs the auth_url to redirect a client to the provider. Options
     /// are... optional. Use them as needed. Keep the Options struct around
-    /// for authentication, or at least the nonce and max_age parameter - we
+    /// for authentication, or at least the `nonce` and `max_age` parameter - we
     /// need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
         let scope = match options.scope.as_deref() {
@@ -231,7 +214,9 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             return Ok(());
         }
 
-        let jwks = self.jwks.as_ref().unwrap();
+        let Some(jwks) = self.jwks.as_ref() else {
+            return Err(Decode::EmptySet.into());
+        };
 
         let header = token.unverified_header()?;
         // If there is more than one key, the token MUST have a key id
@@ -241,7 +226,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         } else {
             // TODO We would want to verify the keyset is >1 in the constructor
             // rather than every decode call, but we can't return an error in new().
-            jwks.keys.first().as_ref().ok_or(Decode::EmptySet)?
+            jwks.keys.first().ok_or(Decode::EmptySet)?
         };
 
         if let Some(alg) = key.common.algorithm.as_ref() {
@@ -441,7 +426,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                             content_type: content_type.to_string(),
                             body: response.bytes().await?.to_vec(),
                         }
-                        .into())
+                        .into());
                     }
                 };
 
@@ -537,7 +522,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                                 content_type: content_type.to_string(),
                                 body: response.bytes().await?.to_vec(),
                             }
-                            .into())
+                            .into());
                         }
                     };
 
@@ -584,6 +569,7 @@ where
             redirect_uri: redirect_uri.into(),
             http_client,
             jwks,
+            pkce: Some(generate_s256_pkce()),
             marker: PhantomData,
         }
     }
@@ -631,6 +617,11 @@ where
                 query.append_pair("redirect_uri", redirect_uri);
             }
 
+            if let Some(pkce) = self.pkce.as_ref() {
+                query.append_pair("code_challenge", pkce.code_challenge());
+                query.append_pair("code_challenge_method", pkce.code_challenge_method());
+            }
+
             self.append_scope(&mut query, scope);
 
             if let Some(state) = state.into() {
@@ -641,16 +632,35 @@ where
         uri
     }
 
-    /// Requests an access token using an authorization code.
+    /// Requests an access token using an authorization code with code verifier
+    /// from PKCE configuration.
     ///
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
     pub async fn request_token(&self, code: &str) -> Result<Bearer, ClientError> {
+        self.request_token_pkce(code, self.pkce.as_ref().map(|pkce| pkce.code_verifier()))
+            .await
+    }
+
+    /// Requests an access token using an authorization code with code verifier.
+    ///
+    /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
+    /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
+    pub async fn request_token_pkce(
+        &self,
+        code: &str,
+        code_verifier: Option<&str>,
+    ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
         // an `await` boundary by localizing it to this inner scope.
         let body = {
             let mut body = Serializer::new(String::new());
             body.append_pair("grant_type", "authorization_code");
             body.append_pair("code", code);
+
+            if let Some(code_verifier) = code_verifier {
+                body.append_pair("code_verifier", code_verifier);
+            }
 
             if let Some(ref redirect_uri) = self.redirect_uri {
                 body.append_pair("redirect_uri", redirect_uri);
@@ -740,7 +750,7 @@ where
                     .as_ref()
                     .refresh_token
                     .as_deref()
-                    .expect("No refresh_token field"),
+                    .expect("refresh_token field"),
             );
 
             self.append_scope(&mut body, scope);
@@ -768,6 +778,16 @@ where
         } else {
             Ok(token_guard)
         }
+    }
+
+    /// Disable PKCE of this [`Client<P, C>`].
+    pub fn disable_pkce(&mut self) {
+        self.pkce = None;
+    }
+
+    /// Refresh PKCE of this [`Client<P, C>`].
+    pub fn refresh_pkce(&mut self) {
+        self.pkce = Some(generate_s256_pkce());
     }
 
     async fn post_token(&self, body: String) -> Result<Value, ClientError> {
@@ -819,7 +839,10 @@ mod tests {
     use url::Url;
 
     use super::Client;
-    use crate::provider::Provider;
+    use crate::{
+        pkce::{Pkce, PkceSha256},
+        provider::Provider,
+    };
 
     struct Test {
         auth_uri: Url,
@@ -842,10 +865,17 @@ mod tests {
         }
     }
 
+    fn test_pkce() -> Option<Pkce> {
+        Some(Pkce::S256(PkceSha256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        }))
+    }
+
     #[test]
     fn auth_uri() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -853,8 +883,9 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = test_pkce();
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
         );
     }
@@ -862,7 +893,7 @@ mod tests {
     #[test]
     fn auth_uri_with_redirect_uri() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -870,8 +901,9 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = test_pkce();
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&redirect_uri=http%3A%2F%2Fexample.com%2Foauth2%2Fcallback",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&redirect_uri=http%3A%2F%2Fexample.com%2Foauth2%2Fcallback&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
         );
     }
@@ -879,7 +911,7 @@ mod tests {
     #[test]
     fn auth_uri_with_scope() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -887,8 +919,9 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = test_pkce();
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&scope=baz",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&scope=baz",
             client.auth_uri(Some("baz"), None).as_str()
         );
     }
@@ -896,7 +929,7 @@ mod tests {
     #[test]
     fn auth_uri_with_state() {
         let http_client = reqwest::Client::new();
-        let client: Client<_> = Client::new(
+        let mut client: Client<_> = Client::new(
             Test::new(),
             String::from("foo"),
             String::from("bar"),
@@ -904,8 +937,9 @@ mod tests {
             http_client,
             None,
         );
+        client.pkce = test_pkce();
         assert_eq!(
-            "http://example.com/oauth2/auth?response_type=code&client_id=foo&state=baz",
+            "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&state=baz",
             client.auth_uri(None, Some("baz")).as_str()
         );
     }
