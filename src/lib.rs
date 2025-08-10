@@ -51,6 +51,7 @@ pub use discovered::Discovered;
 pub use display::Display;
 pub use error::{OAuth2Error, OAuth2ErrorCode};
 pub use options::Options;
+pub use pkce::{generate_s256_pkce, Pkce, PkceSha256};
 pub use prompt::Prompt;
 pub use provider::Provider;
 pub use standard_claims::StandardClaims;

@@ -15,14 +15,7 @@ pub enum Pkce {
     ///
     /// The S256 method uses a SHA-256 hash of the code verifier to generate the
     /// code challenge.
-    S256 {
-        /// A cryptographically random string that is used to correlate the
-        /// authorization request to the token request.
-        code_verifier: String,
-        /// A challenge derived from the code verifier that is sent in the
-        /// authorization request, to be verified against later.
-        code_challenge: String,
-    },
+    S256(PkceSha256),
     /// Plain code challenge method.
     ///
     /// The Plain method uses the code verifier as the code challenge.
@@ -33,7 +26,7 @@ impl Pkce {
     /// Get the code verifier.
     pub fn code_verifier(&self) -> &str {
         match self {
-            Pkce::S256 { code_verifier, .. } => code_verifier,
+            Pkce::S256(pkce) => &pkce.code_verifier,
             Pkce::Plain(code_verifier) => code_verifier,
         }
     }
@@ -41,7 +34,7 @@ impl Pkce {
     /// Get the code challenge.
     pub fn code_challenge(&self) -> &str {
         match self {
-            Pkce::S256 { code_challenge, .. } => code_challenge,
+            Pkce::S256(pkce) => &pkce.code_challenge,
             Pkce::Plain(code_verifier) => code_verifier,
         }
     }
@@ -49,20 +42,41 @@ impl Pkce {
     /// Get the code challenge method.
     pub fn code_challenge_method(&self) -> &str {
         match self {
-            Pkce::S256 { .. } => "S256",
+            Pkce::S256(_) => "S256",
             Pkce::Plain(_) => "plain",
         }
     }
 }
 
-/// Generate a PKCE code verifier and challenge.
-pub fn generate_s256_pkce() -> Pkce {
-    let code_verifier = generate_s256_code_verifier();
-    let code_challenge = generate_s256_code_challenge(&code_verifier);
-    Pkce::S256 {
-        code_verifier,
-        code_challenge,
+/// S256 code challenge method.
+///
+/// The S256 method uses a SHA-256 hash of the code verifier to generate the
+/// code challenge.
+#[derive(Debug, Clone)]
+pub struct PkceSha256 {
+    /// A cryptographically random string that is used to correlate the
+    /// authorization request to the token request.
+    pub(crate) code_verifier: String,
+    /// A challenge derived from the code verifier that is sent in the
+    /// authorization request, to be verified against later.
+    pub(crate) code_challenge: String,
+}
+
+impl PkceSha256 {
+    /// Generate a PKCE S256 code verifier and challenge.
+    pub fn generate() -> Self {
+        let code_verifier = generate_s256_code_verifier();
+        let code_challenge = generate_s256_code_challenge(&code_verifier);
+        PkceSha256 {
+            code_verifier,
+            code_challenge,
+        }
     }
+}
+
+/// Generate a PKCE S256 code verifier and challenge.
+pub fn generate_s256_pkce() -> Pkce {
+    Pkce::S256(PkceSha256::generate())
 }
 
 fn generate_s256_code_verifier() -> String {

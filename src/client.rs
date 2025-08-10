@@ -887,7 +887,10 @@ mod tests {
     use url::Url;
 
     use super::Client;
-    use crate::{pkce::Pkce, provider::Provider};
+    use crate::{
+        pkce::{Pkce, PkceSha256},
+        provider::Provider,
+    };
 
     struct Test {
         auth_uri: Url,
@@ -910,6 +913,13 @@ mod tests {
         }
     }
 
+    fn test_pkce() -> Pkce {
+        Pkce::S256(PkceSha256 {
+            code_verifier: String::from("code_verifier"),
+            code_challenge: String::from("code_challenge"),
+        })
+    }
+
     #[test]
     fn auth_uri() {
         let http_client = reqwest::Client::new();
@@ -921,10 +931,7 @@ mod tests {
             http_client,
             None,
         );
-        client.pkce = Pkce::S256 {
-            code_verifier: String::from("code_verifier"),
-            code_challenge: String::from("code_challenge"),
-        };
+        client.pkce = test_pkce();
         assert_eq!(
             "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
@@ -942,10 +949,7 @@ mod tests {
             http_client,
             None,
         );
-        client.pkce = Pkce::S256 {
-            code_verifier: String::from("code_verifier"),
-            code_challenge: String::from("code_challenge"),
-        };
+        client.pkce = test_pkce();
         assert_eq!(
             "http://example.com/oauth2/auth?response_type=code&client_id=foo&redirect_uri=http%3A%2F%2Fexample.com%2Foauth2%2Fcallback&code_challenge=code_challenge&code_challenge_method=S256",
             client.auth_uri(None, None).as_str()
@@ -963,10 +967,7 @@ mod tests {
             http_client,
             None,
         );
-        client.pkce = Pkce::S256 {
-            code_verifier: String::from("code_verifier"),
-            code_challenge: String::from("code_challenge"),
-        };
+        client.pkce = test_pkce();
         assert_eq!(
             "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&scope=baz",
             client.auth_uri(Some("baz"), None).as_str()
@@ -984,10 +985,7 @@ mod tests {
             http_client,
             None,
         );
-        client.pkce = Pkce::S256 {
-            code_verifier: String::from("code_verifier"),
-            code_challenge: String::from("code_challenge"),
-        };
+        client.pkce = test_pkce();
         assert_eq!(
             "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&state=baz",
             client.auth_uri(None, Some("baz")).as_str()
