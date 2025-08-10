@@ -50,7 +50,7 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     pub jwks: Option<JWKSet<Empty>>,
 
     /// PKCE parameters.
-    pub pkce: Pkce,
+    pub pkce: Option<Pkce>,
 
     marker: PhantomData<C>,
 }
@@ -569,7 +569,7 @@ where
             redirect_uri: redirect_uri.into(),
             http_client,
             jwks,
-            pkce: generate_s256_pkce(),
+            pkce: Some(generate_s256_pkce()),
             marker: PhantomData,
         }
     }
@@ -617,8 +617,10 @@ where
                 query.append_pair("redirect_uri", redirect_uri);
             }
 
-            query.append_pair("code_challenge", self.pkce.code_challenge());
-            query.append_pair("code_challenge_method", self.pkce.code_challenge_method());
+            if let Some(pkce) = self.pkce.as_ref() {
+                query.append_pair("code_challenge", pkce.code_challenge());
+                query.append_pair("code_challenge_method", pkce.code_challenge_method());
+            }
 
             self.append_scope(&mut query, scope);
 
@@ -636,7 +638,7 @@ where
     /// See [RFC 6749, section 4.1.3](http://tools.ietf.org/html/rfc6749#section-4.1.3).
     /// See [RFC 7636, section 4.5](https://tools.ietf.org/html/rfc7636#section-4.5).
     pub async fn request_token(&self, code: &str) -> Result<Bearer, ClientError> {
-        self.request_token_pkce(code, self.pkce.code_verifier())
+        self.request_token_pkce(code, self.pkce.as_ref().map(|pkce| pkce.code_verifier()))
             .await
     }
 
@@ -647,7 +649,7 @@ where
     pub async fn request_token_pkce(
         &self,
         code: &str,
-        code_verifier: &str,
+        code_verifier: Option<&str>,
     ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
         // an `await` boundary by localizing it to this inner scope.
@@ -656,7 +658,9 @@ where
             body.append_pair("grant_type", "authorization_code");
             body.append_pair("code", code);
 
-            body.append_pair("code_verifier", code_verifier);
+            if let Some(code_verifier) = code_verifier {
+                body.append_pair("code_verifier", code_verifier);
+            }
 
             if let Some(ref redirect_uri) = self.redirect_uri {
                 body.append_pair("redirect_uri", redirect_uri);
@@ -776,6 +780,16 @@ where
         }
     }
 
+    /// Disable PKCE of this [`Client<P, C>`].
+    pub fn disable_pkce(&mut self) {
+        self.pkce = None;
+    }
+
+    /// Refresh PKCE of this [`Client<P, C>`].
+    pub fn refresh_pkce(&mut self) {
+        self.pkce = Some(generate_s256_pkce());
+    }
+
     async fn post_token(&self, body: String) -> Result<Value, ClientError> {
         let json = self
             .http_client
@@ -851,11 +865,11 @@ mod tests {
         }
     }
 
-    fn test_pkce() -> Pkce {
-        Pkce::S256(PkceSha256 {
+    fn test_pkce() -> Option<Pkce> {
+        Some(Pkce::S256(PkceSha256 {
             code_verifier: String::from("code_verifier"),
             code_challenge: String::from("code_challenge"),
-        })
+        }))
     }
 
     #[test]
