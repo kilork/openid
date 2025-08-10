@@ -12,6 +12,8 @@ Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-
 
 Implements [OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662).
 
+Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636). PKCE is enabled by default.
+
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
 Originally developed as a quick adaptation to leverage async/await functionality, based on [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc), the library has since evolved into a mature and robust solution, offering expanded features and improved performance.
@@ -42,21 +44,21 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "0.17"
+openid = "0.18"
 ```
 
 By default we use native tls, if you want to use `rustls`:
 
 ```toml
 [dependencies]
-openid = { version = "0.17", default-features = false, features = ["rustls"] }
+openid = { version = "0.18", default-features = false, features = ["rustls"] }
 ```
 
 Alternatively, you can use `rustls` with the platform’s native certificates:
 
 ```toml
 [dependencies]
-openid = { version = "0.17", default-features = false, features = ["rustls-native-roots"] }
+openid = { version = "0.18", default-features = false, features = ["rustls-native-roots"] }
 ```
 
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -71,14 +73,14 @@ anyhow = "1.0"
 cookie = "0.18"
 dotenv = "0.15"
 log = "0.4"
-openid = "0.17"
+openid = "0.18"
 pretty_env_logger = "0.5"
 reqwest = "0.12"
 serde = { version = "1", default-features = false, features = [ "derive" ] }
 serde_json = "1"
 tokio = { version = "1", default-features = false, features = [ "rt-multi-thread", "macros" ] }
-uuid = { version = "1.0", default-features = false, features = [ "v4" ] }
-warp = { version = "0.3", default-features = false }
+uuid = { version = "1", default-features = false, features = [ "v4" ] }
+warp = { version = "0.4", default-features = false, features = [ "server" ] }
 ```
 
 in src/main.rs:
@@ -88,15 +90,17 @@ use std::{convert::Infallible, env, net::SocketAddr, sync::Arc};
 
 use cookie::time::Duration;
 use log::{error, info};
-use openid::{Client, Discovered, DiscoveredClient, Options, StandardClaims, Token, Userinfo};
-use openid_examples::{
-    entity::{LoginQuery, Sessions, User},
-    INDEX_HTML,
-};
 use tokio::sync::RwLock;
 use warp::{
+    Filter, Rejection, Reply,
     http::{Response, StatusCode},
-    reject, Filter, Rejection, Reply,
+    reject,
+};
+
+use openid::{Client, Discovered, DiscoveredClient, Options, StandardClaims, Token, Userinfo};
+use openid_examples::{
+    INDEX_HTML,
+    entity::{LoginQuery, Sessions, User},
 };
 
 type OpenIDClient = Client<Discovered, StandardClaims>;
@@ -119,8 +123,8 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "127.0.0.1:8080".to_string())
         .parse()?;
 
-    info!("redirect: {:?}", redirect);
-    info!("issuer: {}", issuer);
+    info!("redirect: {redirect:?}");
+    info!("issuer: {issuer}");
 
     let client = Arc::new(
         DiscoveredClient::discover(
@@ -191,14 +195,14 @@ async fn request_token(
     if let Some(id_token) = token.id_token.as_mut() {
         oidc_client.decode_token(id_token)?;
         oidc_client.validate_token(id_token, None, None)?;
-        info!("token: {:?}", id_token);
+        info!("token: {id_token:?}");
     } else {
         return Ok(None);
     }
 
     let userinfo = oidc_client.request_userinfo(&token).await?;
 
-    info!("user info: {:?}", userinfo);
+    info!("user info: {userinfo:?}");
 
     Ok(Some((token, userinfo)))
 }
@@ -255,7 +259,7 @@ async fn reply_login(
             response_unauthorized()
         }
         Err(err) => {
-            error!("login error in call: {:?}", err);
+            error!("login error in call: {err:?}");
 
             response_unauthorized()
         }
@@ -325,7 +329,7 @@ async fn reply_authorize(oidc_client: Arc<OpenIDClient>) -> Result<impl warp::Re
         ..Default::default()
     });
 
-    info!("authorize: {}", auth_url);
+    info!("authorize: {auth_url}");
 
     let url: String = auth_url.into();
 
@@ -384,4 +388,4 @@ pub fn host(path: &str) -> String {
 }
 ```
 
-See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.17/examples/warp.rs)
+See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v0.18/examples/warp.rs)
