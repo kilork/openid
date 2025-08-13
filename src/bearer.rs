@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// The bearer token type.
 ///
@@ -42,6 +42,7 @@ pub struct Bearer {
     /// expire in one hour from the time the response was generated.
     /// If omitted, the authorization server SHOULD provide the
     /// expiration time via other means or document the default value.
+    #[serde(deserialize_with = "expires_in")]
     pub expires_in: Option<u64>,
     /// ID Token value associated with the authenticated session.
     ///
@@ -52,6 +53,18 @@ pub struct Bearer {
     /// response.
     #[serde(flatten)]
     pub extra: Option<HashMap<String, serde_json::Value>>,
+}
+
+fn expires_in<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::Number(num) => Ok(num.as_u64()),
+        serde_json::Value::String(s) => s.parse::<u64>().map(Some).map_err(serde::de::Error::custom),
+        _ => Err(serde::de::Error::custom("expected number expression")),
+    }
 }
 
 /// Manages bearer tokens along with their expiration times.
