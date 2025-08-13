@@ -12,7 +12,7 @@ Implements [UMA2](https://docs.kantarainitiative.org/uma/wg/oauth-uma-federated-
 
 Implements [OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662).
 
-Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636). PKCE is enabled by default.
+Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://datatracker.ietf.org/doc/html/rfc7636). PKCE is enabled by default. Please note that PKCE is not rotating keys, but rather using a single key pair for the entire lifetime of the application. One can rotate the key pair by setting by `refresh_pkce` method on client. Ideally, this should be done after each generation of authorization url.
 
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
