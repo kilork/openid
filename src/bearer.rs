@@ -42,7 +42,7 @@ pub struct Bearer {
     /// expire in one hour from the time the response was generated.
     /// If omitted, the authorization server SHOULD provide the
     /// expiration time via other means or document the default value.
-    #[serde(deserialize_with = "expires_in")]
+    #[serde(default, deserialize_with = "expires_in")]
     pub expires_in: Option<u64>,
     /// ID Token value associated with the authenticated session.
     ///
@@ -59,8 +59,8 @@ fn expires_in<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let value = serde_json::Value::deserialize(deserializer)?;
-    match value {
+    let v: serde_json::Value = serde_json::Value::deserialize(deserializer)?;
+    match v {
         serde_json::Value::Number(num) => Ok(num.as_u64()),
         serde_json::Value::String(s) => s.parse::<u64>().map(Some).map_err(serde::de::Error::custom),
         _ => Err(serde::de::Error::custom("expected number expression")),
@@ -156,6 +156,7 @@ mod tests {
         assert_eq!(Some(3600), bearer.expires_in);
     }
 
+
     #[test]
     fn from_response_static() {
         let json = r#"
@@ -169,5 +170,21 @@ mod tests {
         assert_eq!(None, bearer.scope);
         assert_eq!(None, bearer.refresh_token);
         assert_eq!(None, bearer.expires_in);
+    }
+
+    #[test]
+    fn from_response_expires_in_text() {
+        let json = r#"
+            {
+                "token_type":"Bearer",
+                "access_token":"aaaaaaaa",
+                "expires_in":"3600"
+            }
+        "#;
+        let bearer: Bearer = serde_json::from_str(json).unwrap();
+        assert_eq!("aaaaaaaa", bearer.access_token);
+        assert_eq!(None, bearer.scope);
+        assert_eq!(None, bearer.refresh_token);
+        assert_eq!(Some(3600), bearer.expires_in);
     }
 }
