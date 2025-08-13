@@ -63,7 +63,8 @@ pub struct PkceSha256 {
 }
 
 impl PkceSha256 {
-    /// Create a new PKCE S256 code verifier and challenge from an existing code verifier.
+    /// Create a new PKCE S256 code verifier and challenge from an existing code
+    /// verifier.
     pub fn replicate(code_verifier: String) -> Self {
         let code_challenge = generate_s256_code_challenge(&code_verifier);
         PkceSha256 {

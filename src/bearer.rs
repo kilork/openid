@@ -62,7 +62,9 @@ where
     let v: serde_json::Value = serde_json::Value::deserialize(deserializer)?;
     match v {
         serde_json::Value::Number(num) => Ok(num.as_u64()),
-        serde_json::Value::String(s) => s.parse::<u64>().map(Some).map_err(serde::de::Error::custom),
+        serde_json::Value::String(s) => {
+            s.parse::<u64>().map(Some).map_err(serde::de::Error::custom)
+        }
         _ => Err(serde::de::Error::custom("expected number expression")),
     }
 }
@@ -155,7 +157,6 @@ mod tests {
         assert_eq!(Some("bbbbbbbb".into()), bearer.refresh_token);
         assert_eq!(Some(3600), bearer.expires_in);
     }
-
 
     #[test]
     fn from_response_static() {
