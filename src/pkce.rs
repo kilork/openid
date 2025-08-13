@@ -56,21 +56,27 @@ impl Pkce {
 pub struct PkceSha256 {
     /// A cryptographically random string that is used to correlate the
     /// authorization request to the token request.
-    pub(crate) code_verifier: String,
+    pub code_verifier: String,
     /// A challenge derived from the code verifier that is sent in the
     /// authorization request, to be verified against later.
-    pub(crate) code_challenge: String,
+    pub code_challenge: String,
 }
 
 impl PkceSha256 {
-    /// Generate a PKCE S256 code verifier and challenge.
-    pub fn generate() -> Self {
-        let code_verifier = generate_s256_code_verifier();
+    /// Create a new PKCE S256 code verifier and challenge from an existing code verifier.
+    pub fn replicate(code_verifier: String) -> Self {
         let code_challenge = generate_s256_code_challenge(&code_verifier);
         PkceSha256 {
             code_verifier,
             code_challenge,
         }
+    }
+
+    /// Generate a PKCE S256 code verifier and challenge.
+    pub fn generate() -> Self {
+        let code_verifier = generate_s256_code_verifier();
+
+        Self::replicate(code_verifier)
     }
 }
 
