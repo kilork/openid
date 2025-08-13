@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 /// The bearer token type.
 ///
@@ -52,14 +53,13 @@ pub struct Bearer {
     /// Additional properties which are not part of the standard OAuth 2.0
     /// response.
     #[serde(flatten)]
-    pub extra: Option<HashMap<String, serde_json::Value>>,
+    pub extra: Option<HashMap<String, Value>>,
 }
 
 fn expires_in<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    use serde_json::Value;
     match Value::deserialize(deserializer)? {
         Value::Number(num) => Ok(num.as_u64()),
         Value::String(s) => s.parse::<u64>().map(Some).map_err(serde::de::Error::custom),
