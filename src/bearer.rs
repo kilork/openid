@@ -59,12 +59,10 @@ fn expires_in<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let v: serde_json::Value = serde_json::Value::deserialize(deserializer)?;
-    match v {
-        serde_json::Value::Number(num) => Ok(num.as_u64()),
-        serde_json::Value::String(s) => {
-            s.parse::<u64>().map(Some).map_err(serde::de::Error::custom)
-        }
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(num) => Ok(num.as_u64()),
+        Value::String(s) => s.parse::<u64>().map(Some).map_err(serde::de::Error::custom),
         _ => Err(serde::de::Error::custom("expected number expression")),
     }
 }
