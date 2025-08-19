@@ -23,6 +23,9 @@ native-tls = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls-tls"]
 rustls-native-roots = ["reqwest/rustls-tls-native-roots"]
 
+[package.metadata.docs.rs]
+features = ["all"]
+
 [dependencies]
 serde_json = { version = "1", default-features = false }
 base64 = "0.22"
