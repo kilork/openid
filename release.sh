@@ -3,21 +3,25 @@
 set -e
 
 RELEASE_TYPE=${RELEASE_TYPE:-minor}
-cargo set-version --bump ${RELEASE_TYPE}
+
+if [ "${RELEASE_TYPE}" != "current" ]; then
+  cargo set-version --bump ${RELEASE_TYPE}
+fi
 VERSION=`cargo pkgid | cut -d"#" -f2`
-export OPENID_RUST_MAJOR_VERSION=`echo ${VERSION} | cut -d"." -f1,2`
-if [ "${RELEASE_TYPE}" != "patch" ]; then
-    pushd ../openid-examples
+export CRATE="openid"
+export CRATE_RUST_MAJOR_VERSION=`echo ${VERSION} | cut -d"." -f1,2`
+if [[ "${RELEASE_TYPE}" != "patch" && "${RELEASE_TYPE}" != "current" ]]; then
+    pushd ../${CRATE}-examples
     git checkout main
     git pull
-    cargo upgrade -p openid@${OPENID_RUST_MAJOR_VERSION}
+    cargo upgrade -p ${CRATE}@${CRATE_RUST_MAJOR_VERSION}
     cargo update
     cargo build
     git add .
-    git commit -m"openid version ${OPENID_RUST_MAJOR_VERSION}"
-    git branch v${OPENID_RUST_MAJOR_VERSION}
+    git commit -m"${CRATE} version ${CRATE_RUST_MAJOR_VERSION}"
+    git branch v${CRATE_RUST_MAJOR_VERSION}
     git push
-    git push origin v${OPENID_RUST_MAJOR_VERSION}
+    git push origin v${CRATE_RUST_MAJOR_VERSION}
     popd
 fi
 handlebars-magic templates .

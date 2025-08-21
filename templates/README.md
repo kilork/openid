@@ -44,21 +44,21 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-openid = "{{ env_var "OPENID_RUST_MAJOR_VERSION" }}"
+openid = "{{ env_var "CRATE_RUST_MAJOR_VERSION" }}"
 ```
 
 By default we use native tls, if you want to use `rustls`:
 
 ```toml
 [dependencies]
-openid = { version = "{{ env_var "OPENID_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls"] }
+openid = { version = "{{ env_var "CRATE_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls"] }
 ```
 
 Alternatively, you can use `rustls` with the platform’s native certificates:
 
 ```toml
 [dependencies]
-openid = { version = "{{ env_var "OPENID_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls-native-roots"] }
+openid = { version = "{{ env_var "CRATE_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls-native-roots"] }
 ```
 
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
@@ -67,10 +67,10 @@ This example provides only Rust part, assuming just default JHipster frontend se
 
 in Cargo.toml:
 
-{{ codeblock "toml" ( to "[patch.crates-io]" ( from "[dependencies]" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/Cargo.toml" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) ) ) }}
+{{ codeblock "toml" ( to "[patch.crates-io]" ( from "[dependencies]" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/Cargo.toml" "VERSION" (env_var "CRATE_RUST_MAJOR_VERSION") ) ) ) ) }}
 
 in src/main.rs:
 
-{{ codeblock "rust, compile_fail" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/examples/warp.rs" "VERSION" (env_var "OPENID_RUST_MAJOR_VERSION") ) ) }}
+{{ codeblock "rust, compile_fail" ( http_get (replace "https://raw.githubusercontent.com/kilork/openid-examples/vVERSION/examples/warp.rs" "VERSION" (env_var "CRATE_RUST_MAJOR_VERSION") ) ) }}
 
-See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v{{ env_var "OPENID_RUST_MAJOR_VERSION" }}/examples/warp.rs)
+See full example: [openid-examples: warp](https://github.com/kilork/openid-examples/blob/v{{ env_var "CRATE_RUST_MAJOR_VERSION" }}/examples/warp.rs)
