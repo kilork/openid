@@ -44,8 +44,8 @@ pub fn validate_token_aud<C: Claims>(claims: &C, client_id: &str) -> Result<(), 
         return Err(Validation::Missing(Missing::Audience).into());
     }
     // By spec, if there are multiple auds, we must have an azp
-    if let SingleOrMultiple::Multiple(_) = claims.aud() {
-        if claims.azp().is_none() {
+    if let SingleOrMultiple::Multiple(aud) = claims.aud() {
+        if aud.len() > 1 && claims.azp().is_none() {
             return Err(Validation::Missing(Missing::AuthorizedParty).into());
         }
     }
