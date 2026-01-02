@@ -13,16 +13,6 @@ pub struct StandardClaims {
     /// contains scheme, host, and optionally, port number and path components
     /// and no query or fragment components.
     pub iss: Url,
-    // Max 255 ASCII chars
-    // Can't deserialize a [u8; 255]
-    /// Subject Identifier.
-    ///
-    /// A locally unique and never reassigned identifier within the Issuer for
-    /// the End-User, which is intended to be consumed by the Client, e.g.,
-    /// `24400320` or `AItOawmwtWwcT0k51BayewNvutrJUqsvl6qs7A4`. It MUST NOT
-    /// exceed 255 ASCII [RFC20] characters in length. The `sub` value is a
-    /// case-sensitive string.
-    pub sub: String,
     // Either an array of audiences, or just the client_id
     /// Audience(s) that this ID Token is intended for.
     ///
@@ -65,7 +55,7 @@ pub struct StandardClaims {
     /// Essential Claim, then this Claim is REQUIRED; otherwise, its inclusion
     /// is OPTIONAL. (The `auth_time` Claim semantically corresponds to the
     /// OpenID 2.0 PAPE [OpenID.PAPE] `auth_time` response parameter.)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_time: Option<i64>,
     /// String value used to associate a Client session with an ID Token, and to
     /// mitigate replay attacks.
@@ -79,7 +69,7 @@ pub struct StandardClaims {
     /// Authentication Request. Authorization Servers SHOULD perform no other
     /// processing on `nonce` values used. The `nonce` value is a case-sensitive
     /// string.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nonce: Option<String>,
     // base64 encoded, need to decode it!
     /// Access Token hash value. Its value is the base64url encoding of the
@@ -89,7 +79,7 @@ pub struct StandardClaims {
     /// Header. For instance, if the alg is RS256, hash the access_token value
     /// with SHA-256, then take the left-most 128 bits and base64url-encode
     /// them. The at_hash value is a case-sensitive string.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     at_hash: Option<String>,
     // base64 encoded, need to decode it!
     /// Code hash value. Its value is the base64url encoding of the left-most
@@ -99,7 +89,7 @@ pub struct StandardClaims {
     /// alg is HS512, hash the code value with SHA-512, then take the left-most
     /// 256 bits and base64url-encode them. The c_hash value is a case-sensitive
     /// string.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     c_hash: Option<String>,
     /// Authentication Context Class Reference.
     ///
@@ -117,7 +107,7 @@ pub struct StandardClaims {
     /// Parties using this claim will need to agree upon the meanings of the
     /// values used, which may be context specific. The `acr` value is a
     /// case-sensitive string.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acr: Option<String>,
     /// Authentication Methods References.
     ///
@@ -129,7 +119,7 @@ pub struct StandardClaims {
     /// Reference Values registry [IANA.AMR] established by [RFC8176]; parties
     /// using this claim will need to agree upon the meanings of any
     /// unregistered values used, which may be context specific.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub amr: Option<Vec<String>>,
     // If exists, must be client_id
     /// Authorized party - the party to which the ID Token was issued. If
@@ -139,7 +129,7 @@ pub struct StandardClaims {
     /// beyond the scope of this specification are used; therefore,
     /// implementations not using such extensions are encouraged to not use
     /// `azp` and to ignore it when it does occur.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub azp: Option<String>,
     /// The standard claims.
     ///
@@ -162,7 +152,7 @@ impl Claims for StandardClaims {
         &self.iss
     }
     fn sub(&self) -> &str {
-        &self.sub
+        &self.userinfo.sub
     }
     fn aud(&self) -> &SingleOrMultiple<String> {
         &self.aud
@@ -192,3 +182,38 @@ impl Claims for StandardClaims {
 
 // THIS IS CRAZY VOODOO WITCHCRAFT MAGIC
 impl CompactJson for StandardClaims {}
+
+#[cfg(test)]
+mod tests {
+    use biscuit::SingleOrMultiple;
+    use url::Url;
+
+    use crate::{StandardClaims, Userinfo};
+
+    #[test]
+    fn serialization_roundtrip() {
+        let claims = StandardClaims {
+            iss: Url::parse("https://example.com").unwrap(),
+            aud: SingleOrMultiple::Single("client123".to_string()),
+            exp: 1630456800,
+            iat: 1630456600,
+            auth_time: Some(1630456500),
+            nonce: Some("nonce123".to_string()),
+            acr: Some("acr123".to_string()),
+            amr: Some(vec!["amr123".to_string()]),
+            azp: Some("azp123".to_string()),
+            at_hash: None,
+            c_hash: None,
+            userinfo: Userinfo {
+                sub: "user123".to_string().into(),
+                name: Some("username".to_string()),
+                ..Default::default()
+            },
+        };
+
+        let json = serde_json::to_string(&claims).unwrap();
+        let deserialized_claims: StandardClaims = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(claims, deserialized_claims);
+    }
+}
