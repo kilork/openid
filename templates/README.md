@@ -58,7 +58,7 @@ Alternatively, you can use `rustls` with the platform’s native certificates:
 
 ```toml
 [dependencies]
-openid = { version = "{{ env_var "CRATE_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls-native-roots"] }
+openid = { version = "{{ env_var "CRATE_RUST_MAJOR_VERSION" }}", default-features = false, features = ["rustls-native-certs"] }
 ```
 
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
