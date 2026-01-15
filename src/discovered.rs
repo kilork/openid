@@ -9,7 +9,7 @@ use crate::{error::Error, Config, Configurable, Provider};
 /// This struct is used to store configuration for a provider that was
 /// discovered using the discovery protocol.
 #[derive(Debug, Clone)]
-pub struct Discovered{
+pub struct Discovered {
     config: Config,
     credentials_in_body: bool,
 }
@@ -36,7 +36,10 @@ impl Configurable for Discovered {
 
 impl From<Config> for Discovered {
     fn from(value: Config) -> Self {
-        Self{config: value, credentials_in_body: false}
+        Self {
+            config: value,
+            credentials_in_body: false,
+        }
     }
 }
 
