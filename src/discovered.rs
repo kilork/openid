@@ -9,27 +9,44 @@ use crate::{error::Error, Config, Configurable, Provider};
 /// This struct is used to store configuration for a provider that was
 /// discovered using the discovery protocol.
 #[derive(Debug, Clone)]
-pub struct Discovered(Config);
+pub struct Discovered {
+    config: Config,
+    credentials_in_body: bool,
+}
 
 impl Provider for Discovered {
     fn auth_uri(&self) -> &Url {
-        &self.0.authorization_endpoint
+        &self.config.authorization_endpoint
     }
 
     fn token_uri(&self) -> &Url {
-        &self.0.token_endpoint
+        &self.config.token_endpoint
+    }
+
+    fn credentials_in_body(&self) -> bool {
+        self.credentials_in_body
     }
 }
 
 impl Configurable for Discovered {
     fn config(&self) -> &Config {
-        &self.0
+        &self.config
     }
 }
 
 impl From<Config> for Discovered {
     fn from(value: Config) -> Self {
-        Self(value)
+        Self {
+            config: value,
+            credentials_in_body: false,
+        }
+    }
+}
+
+impl Discovered {
+    /// Set the credentials in body flag for a discovered provider
+    pub fn set_credentials_in_body(&mut self, in_body: bool) {
+        self.credentials_in_body = in_body;
     }
 }
 
