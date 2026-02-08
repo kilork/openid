@@ -2,9 +2,9 @@ use biscuit::CompactJson;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::ClientError,
-    uma2::{error::Uma2Error::*, Uma2Provider},
     Claims, Client, Provider,
+    error::ClientError,
+    uma2::{Uma2Provider, error::Uma2Error::*},
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]

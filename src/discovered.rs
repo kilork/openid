@@ -1,8 +1,8 @@
-use biscuit::{jwk::JWKSet, Empty};
+use biscuit::{Empty, jwk::JWKSet};
 use reqwest::Client;
 use url::Url;
 
-use crate::{error::Error, Config, Configurable, Provider};
+use crate::{Config, Configurable, Provider, error::Error};
 
 /// A discovered provider.
 ///

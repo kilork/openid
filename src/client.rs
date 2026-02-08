@@ -1,30 +1,30 @@
 use std::{borrow::Cow, marker::PhantomData};
 
 use biscuit::{
+    CompactJson, Empty,
     jwa::{self, SignatureAlgorithm},
     jwk::{AlgorithmParameters, JWKSet},
     jws::{Compact, Secret},
-    CompactJson, Empty,
 };
 use chrono::Duration;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde_json::Value;
-use url::{form_urlencoded::Serializer, Url};
+use url::{Url, form_urlencoded::Serializer};
 
 use crate::{
+    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
+    StandardClaims, Token, TokenIntrospection, Userinfo,
     bearer::TemporalBearerGuard,
     discovered,
     error::{
         ClientError, Decode, Error, Introspection as ErrorIntrospection, Jose,
         Userinfo as ErrorUserinfo,
     },
-    pkce::{generate_s256_pkce, Pkce},
+    pkce::{Pkce, generate_s256_pkce},
     standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
     },
-    Bearer, Claims, Config, Configurable, Discovered, IdToken, OAuth2Error, Options, Provider,
-    StandardClaims, Token, TokenIntrospection, Userinfo,
 };
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
