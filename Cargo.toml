@@ -15,13 +15,14 @@ repository = "https://github.com/kilork/openid"
 rust-version = "1.85"
 
 [features]
-default = ["native-tls"]
+default = ["native-tls", "http2"]
 all = ["microsoft", "uma2", "native-tls", "rustls-native-certs"]
 microsoft = []
 uma2 = []
 native-tls = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls"]
 rustls-native-certs = ["reqwest/rustls-native-certs"]
+http2 = ["reqwest/http2"]
 
 [package.metadata.docs.rs]
 features = ["all"]
