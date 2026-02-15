@@ -121,6 +121,18 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     /// for authentication, or at least the `nonce` and `max_age` parameter - we
     /// need to verify they stay the same and validate if you used them.
     pub fn auth_url(&self, options: &Options) -> Url {
+        self.auth_url_internal(options, self.pkce.as_ref())
+    }
+
+    /// This is similar to auth_url but generates a new PKCE with every call, returning it
+    /// to the caller along with the URL. Note that calling this method ignores disable_pkce().
+    pub fn auth_url_with_new_pkce(&self, options: &Options) -> (Url, Pkce) {
+        let pkce = generate_s256_pkce();
+        (self.auth_url_internal(options, Some(&pkce)), pkce)
+    }
+
+    /// Extracts the main logic of url creation which is called from different public methods
+    fn auth_url_internal(&self, options: &Options, pkce: Option<&Pkce>) -> Url {
         let scope = match options.scope.as_deref() {
             Some(scope) => {
                 if !scope.contains("openid") {
@@ -133,7 +145,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             None => Cow::Borrowed("openid"),
         };
 
-        let mut url = self.auth_uri(&*scope, options.state.as_deref());
+        let mut url = self.auth_uri_internal(&*scope, options.state.as_deref(), pkce);
         {
             let mut query = url.query_pairs_mut();
             if let Some(ref nonce) = options.nonce {
@@ -605,6 +617,17 @@ where
         scope: impl Into<Option<&'scope str>>,
         state: impl Into<Option<&'state str>>,
     ) -> Url {
+        self.auth_uri_internal(scope, state, self.pkce.as_ref())
+    }
+
+    /// Extracts the core logic of creating the authorization endpoint URI. This is
+    /// called from different public methods
+    fn auth_uri_internal<'scope, 'state>(
+        &self,
+        scope: impl Into<Option<&'scope str>>,
+        state: impl Into<Option<&'state str>>,
+        pkce: Option<&Pkce>,
+    ) -> Url {
         let mut uri = self.provider.auth_uri().clone();
 
         {
@@ -617,7 +640,7 @@ where
                 query.append_pair("redirect_uri", redirect_uri);
             }
 
-            if let Some(pkce) = self.pkce.as_ref() {
+            if let Some(pkce) = pkce {
                 query.append_pair("code_challenge", pkce.code_challenge());
                 query.append_pair("code_challenge_method", pkce.code_challenge_method());
             }
@@ -840,8 +863,11 @@ mod tests {
 
     use super::Client;
     use crate::{
+        configurable::Configurable,
+        options::Options,
         pkce::{Pkce, PkceSha256},
         provider::Provider,
+        Config,
     };
 
     struct Test {
@@ -862,6 +888,14 @@ mod tests {
                 auth_uri: Url::parse("http://example.com/oauth2/auth").unwrap(),
                 token_uri: Url::parse("http://example.com/oauth2/token").unwrap(),
             }
+        }
+    }
+
+    // This is required to meet the trait bound on the impl block where the auth_uri and auth_url
+    // methods sit although this isn't called in those methods
+    impl Configurable for Test {
+        fn config(&self) -> &Config {
+            unimplemented!("not needed for auth_url tests")
         }
     }
 
@@ -942,5 +976,57 @@ mod tests {
             "http://example.com/oauth2/auth?response_type=code&client_id=foo&code_challenge=code_challenge&code_challenge_method=S256&state=baz",
             client.auth_uri(None, Some("baz")).as_str()
         );
+    }
+
+    #[test]
+    fn auth_url_with_static_pkce() {
+        let http_client = reqwest::Client::new();
+        let client: Client<_> = Client::new(
+            Test::new(),
+            String::from("foo"),
+            String::from("bar"),
+            None,
+            http_client,
+            None,
+        );
+        let url = client.auth_url(&Options::default());
+        let url_str = url.as_str();
+        assert!(url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo"));
+        assert!(url_str.contains("code_challenge_method=S256"));
+    }
+
+    #[test]
+    fn auth_url_with_disable_pkce() {
+        let http_client = reqwest::Client::new();
+        let mut client: Client<_> = Client::new(
+            Test::new(),
+            String::from("foo"),
+            String::from("bar"),
+            None,
+            http_client,
+            None,
+        );
+        client.disable_pkce();
+        let url = client.auth_url(&Options::default());
+        let url_str = url.as_str();
+        assert!(url_str.eq("http://example.com/oauth2/auth?response_type=code&client_id=foo&scope=openid"));
+    }
+
+    #[test]
+    fn auth_url_with_new_pkce() {
+        let http_client = reqwest::Client::new();
+        let mut client: Client<_> = Client::new(
+            Test::new(),
+            String::from("foo"),
+            String::from("bar"),
+            None,
+            http_client,
+            None,
+        );
+        client.disable_pkce();
+        let (url, pkce) = client.auth_url_with_new_pkce(&Options::default());
+        let url_str = url.as_str();
+        assert!(url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo"));
+        assert!(url_str.contains(&format!("code_challenge={}", pkce.code_challenge())));
     }
 }
