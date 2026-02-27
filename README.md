@@ -54,13 +54,6 @@ By default we use native tls, if you want to use `rustls`:
 openid = { version = "0.22", default-features = false, features = ["rustls"] }
 ```
 
-Alternatively, you can use `rustls` with the platform’s native certificates:
-
-```toml
-[dependencies]
-openid = { version = "0.22", default-features = false, features = ["rustls-native-certs"] }
-```
-
 ### Use case: [Warp](https://crates.io/crates/warp) web server with [JHipster](https://www.jhipster.tech/) generated frontend and [Google OpenID Connect](https://developers.google.com/identity/protocols/OpenIDConnect)
 
 This example provides only Rust part, assuming just default JHipster frontend settings.
