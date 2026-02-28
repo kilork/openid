@@ -180,6 +180,9 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             if let Some(ref acr_values) = options.acr_values {
                 query.append_pair("acr_values", acr_values.as_str());
             }
+            if let Some(ref response_mode) = options.response_mode {
+                query.append_pair("response_mode", response_mode.as_str());
+            }
         }
         url
     }
