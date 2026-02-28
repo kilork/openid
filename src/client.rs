@@ -866,11 +866,11 @@ mod tests {
 
     use super::Client;
     use crate::{
+        Config,
         configurable::Configurable,
         options::Options,
         pkce::{Pkce, PkceSha256},
         provider::Provider,
-        Config,
     };
 
     struct Test {
@@ -994,7 +994,9 @@ mod tests {
         );
         let url = client.auth_url(&Options::default());
         let url_str = url.as_str();
-        assert!(url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo"));
+        assert!(
+            url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo")
+        );
         assert!(url_str.contains("code_challenge_method=S256"));
     }
 
@@ -1012,7 +1014,10 @@ mod tests {
         client.disable_pkce();
         let url = client.auth_url(&Options::default());
         let url_str = url.as_str();
-        assert!(url_str.eq("http://example.com/oauth2/auth?response_type=code&client_id=foo&scope=openid"));
+        assert!(
+            url_str
+                .eq("http://example.com/oauth2/auth?response_type=code&client_id=foo&scope=openid")
+        );
     }
 
     #[test]
@@ -1029,7 +1034,9 @@ mod tests {
         client.disable_pkce();
         let (url, pkce) = client.auth_url_with_new_pkce(&Options::default());
         let url_str = url.as_str();
-        assert!(url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo"));
+        assert!(
+            url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo")
+        );
         assert!(url_str.contains(&format!("code_challenge={}", pkce.code_challenge())));
     }
 }

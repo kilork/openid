@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use chrono::Duration;
 
-use crate::{response_mode::ResponseMode, Display, Prompt};
+use crate::{Display, Prompt, response_mode::ResponseMode};
 
 /// Optional request parameters.
 ///
