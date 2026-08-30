@@ -2,7 +2,10 @@ use biscuit::{Empty, jwk::JWKSet};
 use reqwest::Client;
 use url::Url;
 
-use crate::{Config, Configurable, Provider, error::Error};
+use crate::{
+    Config, Configurable, Provider,
+    error::{Error, Mismatch, Validation},
+};
 
 /// A discovered provider.
 ///
@@ -50,14 +53,43 @@ impl Discovered {
     }
 }
 
+/// Discovers provider configuration, validating the issuer of the discovered
+/// configuration against the requested issuer.
 pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
+    let requested = issuer.clone();
     issuer
         .path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "openid-configuration"]);
 
     let resp = client.get(issuer).send().await?.error_for_status()?;
-    resp.json().await.map_err(Error::from)
+    let config: Config = resp.json().await.map_err(Error::from)?;
+    validate_discovered_issuer(&requested, &config.issuer)?;
+    Ok(config)
+}
+
+/// Validates that the issuer of the discovered provider configuration matches
+/// the requested issuer, as required by [OpenID Connect Discovery
+/// 3.1.2.2](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationValidation).
+///
+/// The comparison is exact. Non-compliant providers that return a different
+/// or templated issuer, like the Microsoft multi-tenant `{tenantid}` issuer,
+/// are handled by their provider feature instead.
+///
+/// # Errors
+///
+/// - [Error::Validation] if the discovered issuer mismatches the requested
+///   issuer
+pub fn validate_discovered_issuer(requested: &Url, discovered: &Url) -> Result<(), Error> {
+    if requested == discovered {
+        Ok(())
+    } else {
+        Err(Validation::Mismatch(Mismatch::Issuer {
+            expected: requested.to_string(),
+            actual: discovered.to_string(),
+        })
+        .into())
+    }
 }
 
 /// Get the JWK set from the given Url.
@@ -118,5 +150,27 @@ mod test {
     fn validate_https_rejects_http_and_accepts_https() {
         assert!(validate_https(&url("http://localhost:8080/realms/test")).is_err());
         assert!(validate_https(&url("https://example.com/jwks")).is_ok());
+    }
+
+    #[test]
+    fn validate_discovered_issuer_pins_issuer() {
+        let requested = url("https://example.com/common/v2.0");
+        assert!(validate_discovered_issuer(&requested, &requested).is_ok());
+
+        assert!(
+            validate_discovered_issuer(&requested, &url("https://attacker.example/common/v2.0"))
+                .is_err()
+        );
+        assert!(
+            validate_discovered_issuer(&requested, &url("https://example.com/common/v2.0/extra"))
+                .is_err()
+        );
+        assert!(
+            validate_discovered_issuer(&requested, &url("https://example.com/other/v2.0")).is_err()
+        );
+        let mismatch =
+            validate_discovered_issuer(&requested, &url("http://example.com/common/v2.0"))
+                .unwrap_err();
+        assert!(mismatch.to_string().contains("issuer"));
     }
 }
