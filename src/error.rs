@@ -225,6 +225,9 @@ pub enum Decode {
     /// No support for Octet key pair yet.
     #[error("No support for Octet key pair yet")]
     UnsupportedOctetKeyPair,
+    /// No JWK set configured to verify token signature.
+    #[error("No JWK set configured to verify token signature")]
+    MissingJwks,
 }
 
 /// Validation failure related to mismatch of values, missing values or expired

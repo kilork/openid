@@ -210,6 +210,7 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     ///
     /// # Errors
     ///
+    /// - [Decode::MissingJwks] if no JWK set is configured for this client
     /// - [Decode::MissingKid] if the keyset has multiple keys but the key id on
     ///   the token is missing
     /// - [Decode::MissingKey] if the given key id is not in the key set
@@ -227,12 +228,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
             return Ok(());
         }
 
-        if self.jwks.is_none() {
-            return Ok(());
-        }
-
         let Some(jwks) = self.jwks.as_ref() else {
-            return Err(Decode::EmptySet.into());
+            return Err(Decode::MissingJwks.into());
         };
 
         let header = token.unverified_header()?;
@@ -868,8 +865,9 @@ mod tests {
 
     use super::Client;
     use crate::{
-        Config,
+        Config, IdToken, StandardClaims,
         configurable::Configurable,
+        error::{Decode, Error},
         options::Options,
         pkce::{Pkce, PkceSha256},
         provider::Provider,
@@ -902,6 +900,23 @@ mod tests {
         fn config(&self) -> &Config {
             unimplemented!("not needed for auth_url tests")
         }
+    }
+
+    #[test]
+    fn decode_token_without_jwks_is_an_error() {
+        let client: Client<Test, StandardClaims> = Client::new(
+            Test::new(),
+            String::from("client_id"),
+            None::<String>,
+            None::<String>,
+            reqwest::Client::new(),
+            None,
+        );
+        let mut token: IdToken<StandardClaims> = crate::Jws::new_encoded("e30.e30.");
+        assert!(matches!(
+            client.decode_token(&mut token).unwrap_err(),
+            Error::Decode(Decode::MissingJwks)
+        ));
     }
 
     fn test_pkce() -> Option<Pkce> {
