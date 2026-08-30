@@ -769,17 +769,14 @@ where
     ) -> Result<Bearer, ClientError> {
         // Ensure the non thread-safe `Serializer` is not kept across
         // an `await` boundary by localizing it to this inner scope.
+        let Some(refresh_token) = token.as_ref().refresh_token.as_deref() else {
+            return Err(ClientError::MissingRefreshToken);
+        };
+
         let body = {
             let mut body = Serializer::new(String::new());
             body.append_pair("grant_type", "refresh_token");
-            body.append_pair(
-                "refresh_token",
-                token
-                    .as_ref()
-                    .refresh_token
-                    .as_deref()
-                    .expect("refresh_token field"),
-            );
+            body.append_pair("refresh_token", refresh_token);
 
             self.append_scope(&mut body, scope);
 
