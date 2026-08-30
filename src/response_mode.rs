@@ -7,9 +7,9 @@ pub enum ResponseMode {
     /// of the redirect URI. This is the default for the Authorization Code Flow
     /// and the `none` response type.
     Query,
-    /// The Authorization Server returns the response using the fragment component
-    /// of the redirect URI. This is the default for the Implicit Flow (`token`
-    /// and `id_token` response types).
+    /// The Authorization Server returns the response using the fragment
+    /// component of the redirect URI. This is the default for the Implicit
+    /// Flow (`token` and `id_token` response types).
     Fragment,
     /// The Authorization Server returns the response using the HTML form POST
     /// method. This allows sensitive data to be sent via POST body instead of

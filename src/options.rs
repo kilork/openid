@@ -121,6 +121,7 @@ pub struct Options {
     ///
     /// This parameter is defined in [OAuth 2.0 Multiple Response Type Encoding Practices](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest).
     /// This use of this parameter is NOT RECOMMENDED when the Response Mode
-    /// that would be requested is the default mode specified for the Response Type.
+    /// that would be requested is the default mode specified for the Response
+    /// Type.
     pub response_mode: Option<ResponseMode>,
 }

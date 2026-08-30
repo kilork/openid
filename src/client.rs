@@ -124,14 +124,16 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
         self.auth_url_internal(options, self.pkce.as_ref())
     }
 
-    /// This is similar to auth_url but generates a new PKCE with every call, returning it
-    /// to the caller along with the URL. Note that calling this method ignores disable_pkce().
+    /// This is similar to auth_url but generates a new PKCE with every call,
+    /// returning it to the caller along with the URL. Note that calling
+    /// this method ignores disable_pkce().
     pub fn auth_url_with_new_pkce(&self, options: &Options) -> (Url, Pkce) {
         let pkce = generate_s256_pkce();
         (self.auth_url_internal(options, Some(&pkce)), pkce)
     }
 
-    /// Extracts the main logic of url creation which is called from different public methods
+    /// Extracts the main logic of url creation which is called from different
+    /// public methods
     fn auth_url_internal(&self, options: &Options, pkce: Option<&Pkce>) -> Url {
         let scope = match options.scope.as_deref() {
             Some(scope) => {
@@ -623,8 +625,8 @@ where
         self.auth_uri_internal(scope, state, self.pkce.as_ref())
     }
 
-    /// Extracts the core logic of creating the authorization endpoint URI. This is
-    /// called from different public methods
+    /// Extracts the core logic of creating the authorization endpoint URI. This
+    /// is called from different public methods
     fn auth_uri_internal<'scope, 'state>(
         &self,
         scope: impl Into<Option<&'scope str>>,
@@ -894,8 +896,8 @@ mod tests {
         }
     }
 
-    // This is required to meet the trait bound on the impl block where the auth_uri and auth_url
-    // methods sit although this isn't called in those methods
+    // This is required to meet the trait bound on the impl block where the auth_uri
+    // and auth_url methods sit although this isn't called in those methods
     impl Configurable for Test {
         fn config(&self) -> &Config {
             unimplemented!("not needed for auth_url tests")
