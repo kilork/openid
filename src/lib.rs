@@ -49,7 +49,9 @@ pub use client::Client;
 pub use config::Config;
 pub use configurable::Configurable;
 pub use custom_claims::CustomClaims;
-pub use discovered::{Discovered, jwks, jwks_insecure};
+pub use discovered::{
+    Discovered, jwks, jwks_insecure, jwks_insecure_with_max_size, jwks_with_max_size,
+};
 pub use display::Display;
 pub use error::{OAuth2Error, OAuth2ErrorCode};
 pub use options::Options;
