@@ -113,6 +113,14 @@ pub enum ClientError {
     /// UMA2 error.
     #[cfg(feature = "uma2")]
     Uma2(Uma2Error),
+
+    /// Response exceeds the maximum allowed size.
+    ResponseTooBig {
+        /// Actual response size.
+        size: usize,
+        /// Maximum allowed response size.
+        max: usize,
+    },
 }
 
 impl fmt::Display for ClientError {
@@ -125,6 +133,12 @@ impl fmt::Display for ClientError {
             ClientError::OAuth2(ref err) => write!(f, "{err}"),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => write!(f, "{err}"),
+            ClientError::ResponseTooBig { size, max } => {
+                write!(
+                    f,
+                    "Response of {size} bytes exceeds maximum allowed size of {max} bytes"
+                )
+            }
         }
     }
 }
@@ -139,6 +153,7 @@ impl error::Error for ClientError {
             ClientError::OAuth2(ref err) => Some(err),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => Some(err),
+            ClientError::ResponseTooBig { .. } => None,
         }
     }
 }
@@ -202,6 +217,14 @@ pub enum Error {
     /// Path segments in url is cannot-be-a-base.
     #[error("Url: Path segments is cannot-be-a-base")]
     CannotBeABase,
+    /// Response exceeds the maximum allowed size.
+    #[error("Response of {size} bytes exceeds maximum allowed size of {max} bytes")]
+    ResponseTooBig {
+        /// Actual response size.
+        size: usize,
+        /// Maximum allowed response size.
+        max: usize,
+    },
     /// Client side error.
     #[error(transparent)]
     ClientError(#[from] ClientError),

@@ -83,5 +83,6 @@ pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma
         .map_err(|_| Error::CannotBeABase)?
         .extend(&[".well-known", "uma2-configuration"]);
     let resp = client.get(issuer).send().await?;
-    resp.json().await.map_err(Error::from)
+    let config: Uma2Config = crate::http::json(resp).await.map_err(Error::from)?;
+    Ok(config)
 }
