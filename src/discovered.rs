@@ -60,8 +60,15 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
     resp.json().await.map_err(Error::from)
 }
 
-/// Get the JWK set from the given Url. Errors are either a reqwest error or an
-/// Insecure error if the url isn't https.
+/// Get the JWK set from the given Url.
+///
+/// # Errors
+///
+/// - [Error::Insecure] if the url isn't https; use [jwks_insecure] to allow
+///   insecure urls, e.g. for a development provider like Keycloak at
+///   `http://localhost:8080`
+/// - reqwest errors
+/// - JSON deserialization errors
 ///
 /// This is a low-level helper, useful when working with providers that are not
 /// fully OIDC compliant, e.g. when discovery documents are served from
@@ -71,6 +78,45 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
 /// The fetched keys are used for ID token signature verification, so only
 /// point this at the `jwks_uri` of a provider you trust.
 pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
+    validate_https(&url)?;
     let resp = client.get(url).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)
+}
+
+/// Get the JWK set from the given Url without https enforcement.
+///
+/// Same as [jwks], but allows non-https urls. The fetched keys are used for ID
+/// token signature verification as well, so use it only with providers you
+/// trust, e.g. a development Keycloak at `http://localhost:8080`.
+///
+/// # Errors
+///
+/// - reqwest errors
+/// - JSON deserialization errors
+pub async fn jwks_insecure(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
+    let resp = client.get(url).send().await?.error_for_status()?;
+    resp.json().await.map_err(Error::from)
+}
+
+/// Errors if the url is not https.
+fn validate_https(url: &Url) -> Result<(), Error> {
+    if url.scheme() != "https" {
+        return Err(Error::Insecure(url.clone()));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn url(s: &str) -> Url {
+        Url::parse(s).expect("valid url")
+    }
+
+    #[test]
+    fn validate_https_rejects_http_and_accepts_https() {
+        assert!(validate_https(&url("http://localhost:8080/realms/test")).is_err());
+        assert!(validate_https(&url("https://example.com/jwks")).is_ok());
+    }
 }
