@@ -57,7 +57,8 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
         .extend(&[".well-known", "openid-configuration"]);
 
     let resp = client.get(issuer).send().await?.error_for_status()?;
-    resp.json().await.map_err(Error::from)
+    let config: Config = crate::http::json(resp).await.map_err(Error::from)?;
+    Ok(config)
 }
 
 /// Get the JWK set from the given Url.
@@ -95,7 +96,50 @@ pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
 /// - JSON deserialization errors
 pub async fn jwks_insecure(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     let resp = client.get(url).send().await?.error_for_status()?;
-    resp.json().await.map_err(Error::from)
+    crate::http::json(resp).await.map_err(Error::from)
+}
+
+/// Get the JWK set from the given Url, enforcing the https scheme and a
+/// custom response size limit.
+///
+/// Same as [jwks], but accepts a maximum response size, for providers whose
+/// JWK set exceeds the default limit of 1 MiB (providers with many signing
+/// keys). Use [jwks_insecure_with_max_size] to allow non-https urls.
+///
+/// A `max_response_size` of [usize::MAX] disables the limit.
+///
+/// # Errors
+///
+/// - [Error::Insecure] if the url isn't https
+/// - [Error::ClientError](`ClientError::ResponseTooBig`) if the response
+///   exceeds `max_response_size`
+/// - reqwest errors
+/// - JSON deserialization errors
+pub async fn jwks_with_max_size(
+    client: &Client,
+    url: Url,
+    max_response_size: usize,
+) -> Result<JWKSet<Empty>, Error> {
+    validate_https(&url)?;
+    jwks_insecure_with_max_size(client, url, max_response_size).await
+}
+
+/// Get the JWK set from the given Url with a custom response size limit and
+/// without https enforcement.
+///
+/// Same as [jwks_insecure], but accepts a maximum response size, for
+/// providers whose JWK set exceeds the default limit of 1 MiB. The fetched
+/// keys are used for ID token signature verification as well, so use it only
+/// with providers you trust.
+pub async fn jwks_insecure_with_max_size(
+    client: &Client,
+    url: Url,
+    max_response_size: usize,
+) -> Result<JWKSet<Empty>, Error> {
+    let resp = client.get(url).send().await?.error_for_status()?;
+    crate::http::json_with_limit(resp, max_response_size)
+        .await
+        .map_err(Error::from)
 }
 
 /// Errors if the url is not https.
