@@ -72,28 +72,16 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
 /// the requested issuer, as required by [OpenID Connect Discovery
 /// 3.1.2.2](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationValidation).
 ///
-/// A `{tenantid}` segment (also percent encoded as `%7Btenantid%7D`) is
-/// accepted as a template matching any segment value, following the Microsoft
-/// identity platform multi-tenant application convention.
+/// The comparison is exact. Non-compliant providers that return a different
+/// or templated issuer, like the Microsoft multi-tenant `{tenantid}` issuer,
+/// are handled by their provider feature instead.
 ///
 /// # Errors
 ///
 /// - [Error::Validation] if the discovered issuer mismatches the requested
 ///   issuer
 pub fn validate_discovered_issuer(requested: &Url, discovered: &Url) -> Result<(), Error> {
-    let matches = requested == discovered
-        || (requested.scheme() == discovered.scheme()
-            && requested.host() == discovered.host()
-            && requested.port() == discovered.port()
-            && requested
-                .path_segments()
-                .zip(discovered.path_segments())
-                .map(|(requested, discovered)| segments_match(requested, discovered))
-                .unwrap_or_else(|| requested.path() == discovered.path())
-            && requested.query().is_none() == discovered.query().is_none()
-            && requested.fragment().is_none() == discovered.fragment().is_none());
-
-    if matches {
+    if requested == discovered {
         Ok(())
     } else {
         Err(Validation::Mismatch(Mismatch::Issuer {
@@ -102,32 +90,6 @@ pub fn validate_discovered_issuer(requested: &Url, discovered: &Url) -> Result<(
         })
         .into())
     }
-}
-
-/// Checks whether a segment is a `{tenantid}` issuer template placeholder.
-fn is_tenantid_template(segment: &str) -> bool {
-    matches!(
-        segment.to_ascii_lowercase().as_str(),
-        "{tenantid}" | "%7btenantid%7d"
-    )
-}
-
-fn segments_match<'a, I, J>(requested: I, discovered: J) -> bool
-where
-    I: Iterator<Item = &'a str>,
-    J: Iterator<Item = &'a str>,
-{
-    let requested: Vec<&str> = requested.collect();
-    let discovered: Vec<&str> = discovered.collect();
-    requested.len() == discovered.len()
-        && requested
-            .iter()
-            .zip(discovered.iter())
-            .all(|(requested, discovered)| {
-                requested == discovered
-                    || is_tenantid_template(requested)
-                    || is_tenantid_template(discovered)
-            })
 }
 
 /// Get the JWK set from the given Url.
@@ -192,28 +154,23 @@ mod test {
 
     #[test]
     fn validate_discovered_issuer_pins_issuer() {
-        let requested = url("https://login.microsoftonline.com/common/v2.0");
-        let template = url("https://login.microsoftonline.com/%7Btenantid%7D/v2.0");
+        let requested = url("https://example.com/common/v2.0");
         assert!(validate_discovered_issuer(&requested, &requested).is_ok());
-        assert!(validate_discovered_issuer(&requested, &template).is_ok());
-        assert!(validate_discovered_issuer(&template, &requested).is_ok());
 
         assert!(
             validate_discovered_issuer(&requested, &url("https://attacker.example/common/v2.0"))
                 .is_err()
         );
         assert!(
-            validate_discovered_issuer(
-                &requested,
-                &url("https://login.microsoftonline.com/common/v2.0/extra")
-            )
-            .is_err()
+            validate_discovered_issuer(&requested, &url("https://example.com/common/v2.0/extra"))
+                .is_err()
         );
-        let mismatch = validate_discovered_issuer(
-            &requested,
-            &url("http://login.microsoftonline.com/common/v2.0"),
-        )
-        .unwrap_err();
+        assert!(
+            validate_discovered_issuer(&requested, &url("https://example.com/other/v2.0")).is_err()
+        );
+        let mismatch =
+            validate_discovered_issuer(&requested, &url("http://example.com/common/v2.0"))
+                .unwrap_err();
         assert!(mismatch.to_string().contains("issuer"));
     }
 }
