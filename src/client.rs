@@ -424,7 +424,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
 
                 let info: U = match (mime_type.type_(), mime_type.subtype().as_str()) {
                     (mime::APPLICATION, "json") => {
-                        let info_value: Value = response.json().await?;
+                        let info_value: Value =
+                            crate::http::json(response).await.map_err(Error::from)?;
                         if info_value.get("error").is_some() {
                             let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
                             return Err(Error::ClientError(oauth2_error.into()));
@@ -527,7 +528,8 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
                 let info: TokenIntrospection<I> =
                     match (mime_type.type_(), mime_type.subtype().as_str()) {
                         (mime::APPLICATION, "json") => {
-                            let info_value: Value = response.json().await?;
+                            let info_value: Value =
+                                crate::http::json(response).await.map_err(Error::from)?;
                             if info_value.get("error").is_some() {
                                 let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
                                 return Err(Error::ClientError(oauth2_error.into()));
@@ -819,7 +821,7 @@ where
     }
 
     async fn post_token(&self, body: String) -> Result<Value, ClientError> {
-        let json = self
+        let response = self
             .http_client
             .post(self.provider.token_uri().clone())
             .basic_auth(&self.client_id, self.client_secret.as_ref())
@@ -827,9 +829,9 @@ where
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .body(body)
             .send()
-            .await?
-            .json::<Value>()
             .await?;
+
+        let json: Value = crate::http::json(response).await?;
 
         let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 

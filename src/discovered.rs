@@ -57,7 +57,8 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
         .extend(&[".well-known", "openid-configuration"]);
 
     let resp = client.get(issuer).send().await?.error_for_status()?;
-    resp.json().await.map_err(Error::from)
+    let config: Config = crate::http::json(resp).await.map_err(Error::from)?;
+    Ok(config)
 }
 
 /// Get the JWK set from the given Url.
@@ -95,7 +96,7 @@ pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
 /// - JSON deserialization errors
 pub async fn jwks_insecure(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     let resp = client.get(url).send().await?.error_for_status()?;
-    resp.json().await.map_err(Error::from)
+    crate::http::json(resp).await.map_err(Error::from)
 }
 
 /// Errors if the url is not https.

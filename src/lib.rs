@@ -21,6 +21,7 @@ mod deserializers;
 mod discovered;
 mod display;
 pub mod error;
+mod http;
 mod options;
 pub mod pkce;
 mod prompt;

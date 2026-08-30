@@ -143,16 +143,16 @@ where
             Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token),
         };
 
-        let json = self
+        let response = self
             .http_client
             .post(self.provider.token_uri().clone())
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .header(AUTHORIZATION, auth_method.as_str())
             .body(body)
             .send()
-            .await?
-            .json::<Value>()
             .await?;
+
+        let json: Value = crate::http::json(response).await?;
 
         let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
@@ -192,16 +192,16 @@ where
             return Err(ClientError::Uma2(NoPermissionsEndpoint));
         };
 
-        let json = self
+        let response = self
             .http_client
             .post(url)
             .header(CONTENT_TYPE, "application/json")
             .header(AUTHORIZATION, format!("Bearer {:}", pat_token))
             .json(&requests)
             .send()
-            .await?
-            .json::<Value>()
             .await?;
+
+        let json: Value = crate::http::json(response).await?;
 
         let error: Result<OAuth2Error, _> = serde_json::from_value(json.clone());
 
