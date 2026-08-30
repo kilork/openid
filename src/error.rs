@@ -113,6 +113,9 @@ pub enum ClientError {
     /// UMA2 error.
     #[cfg(feature = "uma2")]
     Uma2(Uma2Error),
+
+    /// Missing refresh token.
+    MissingRefreshToken,
 }
 
 impl fmt::Display for ClientError {
@@ -125,6 +128,7 @@ impl fmt::Display for ClientError {
             ClientError::OAuth2(ref err) => write!(f, "{err}"),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => write!(f, "{err}"),
+            ClientError::MissingRefreshToken => write!(f, "Missing refresh token"),
         }
     }
 }
@@ -139,6 +143,7 @@ impl error::Error for ClientError {
             ClientError::OAuth2(ref err) => Some(err),
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => Some(err),
+            ClientError::MissingRefreshToken => None,
         }
     }
 }
