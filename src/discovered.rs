@@ -62,6 +62,14 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
 
 /// Get the JWK set from the given Url. Errors are either a reqwest error or an
 /// Insecure error if the url isn't https.
+///
+/// This is a low-level helper, useful when working with providers that are not
+/// fully OIDC compliant, e.g. when discovery documents are served from
+/// non-standard locations and the [Client::discover](crate::Client::discover)
+/// flow cannot be used.
+///
+/// The fetched keys are used for ID token signature verification, so only
+/// point this at the `jwks_uri` of a provider you trust.
 pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
     let resp = client.get(url).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)
