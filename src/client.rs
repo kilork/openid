@@ -761,6 +761,11 @@ where
 
     /// Refreshes an access token.
     ///
+    /// Values omitted by the authorization server in the refresh response are
+    /// carried over from the previous token: the `refresh_token` (see
+    /// [RFC 6749, section 10.4](https://datatracker.ietf.org/doc/html/rfc6749#section-10.4))
+    /// and the `id_token` (see [OpenID Connect Core 1.0, section 12.2](https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens)).
+    ///
     /// See [RFC 6749, section 6](http://tools.ietf.org/html/rfc6749#section-6).
     pub async fn refresh_token(
         &self,
@@ -790,9 +795,7 @@ where
 
         let json = self.post_token(body).await?;
         let mut new_token: Bearer = serde_json::from_value(json)?;
-        if new_token.refresh_token.is_none() {
-            new_token.refresh_token = token.as_ref().refresh_token.clone();
-        }
+        carry_over_missing(&mut new_token, token.as_ref());
         Ok(new_token)
     }
 
@@ -862,13 +865,28 @@ where
     }
 }
 
+/// Carries over values the authorization server omitted from a refresh
+/// response, so the refreshed token stays usable: the `refresh_token` (see
+/// [RFC 6749, section
+/// 10.4](https://datatracker.ietf.org/doc/html/rfc6749#section-10.4)) and the
+/// `id_token` (see [OpenID Connect Core 1.0, section
+/// 12.2](https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens)).
+fn carry_over_missing(new_token: &mut Bearer, previous: &Bearer) {
+    if new_token.refresh_token.is_none() {
+        new_token.refresh_token = previous.refresh_token.clone();
+    }
+    if new_token.id_token.is_none() {
+        new_token.id_token = previous.id_token.clone();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use url::Url;
 
-    use super::Client;
+    use super::{Client, carry_over_missing};
     use crate::{
-        Config,
+        Bearer, Config,
         configurable::Configurable,
         options::Options,
         pkce::{Pkce, PkceSha256},
@@ -1040,5 +1058,29 @@ mod tests {
             url_str.starts_with("http://example.com/oauth2/auth?response_type=code&client_id=foo")
         );
         assert!(url_str.contains(&format!("code_challenge={}", pkce.code_challenge())));
+    }
+
+    #[test]
+    fn test_carry_over_missing() {
+        let previous: Bearer = serde_json::from_str(
+            r#"{"access_token":"old","token_type":"bearer","refresh_token":"r","id_token":"id"}"#,
+        )
+        .unwrap();
+
+        // refresh response without refresh_token and id_token
+        let mut refreshed: Bearer =
+            serde_json::from_str(r#"{"access_token":"new","token_type":"bearer"}"#).unwrap();
+        carry_over_missing(&mut refreshed, &previous);
+        assert_eq!(refreshed.refresh_token.as_deref(), Some("r"));
+        assert_eq!(refreshed.id_token.as_deref(), Some("id"));
+
+        // values returned by the authorization server win
+        let mut refreshed: Bearer = serde_json::from_str(
+            r#"{"access_token":"new","token_type":"bearer","refresh_token":"r2","id_token":"id2"}"#,
+        )
+        .unwrap();
+        carry_over_missing(&mut refreshed, &previous);
+        assert_eq!(refreshed.refresh_token.as_deref(), Some("r2"));
+        assert_eq!(refreshed.id_token.as_deref(), Some("id2"));
     }
 }
