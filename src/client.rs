@@ -866,11 +866,8 @@ where
 }
 
 /// Carries over values the authorization server omitted from a refresh
-/// response, so the refreshed token stays usable: the `refresh_token` (see
-/// [RFC 6749, section
-/// 10.4](https://datatracker.ietf.org/doc/html/rfc6749#section-10.4)) and the
-/// `id_token` (see [OpenID Connect Core 1.0, section
-/// 12.2](https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens)).
+/// response, so the refreshed token stays usable. See [`Client::refresh_token`]
+/// for the specification references.
 fn carry_over_missing(new_token: &mut Bearer, previous: &Bearer) {
     if new_token.refresh_token.is_none() {
         new_token.refresh_token = previous.refresh_token.clone();
@@ -1061,7 +1058,7 @@ mod tests {
     }
 
     #[test]
-    fn test_carry_over_missing() {
+    fn carries_over_missing_values() {
         let previous: Bearer = serde_json::from_str(
             r#"{"access_token":"old","token_type":"bearer","refresh_token":"r","id_token":"id"}"#,
         )
