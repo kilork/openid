@@ -102,12 +102,16 @@ impl AsRef<Bearer> for TemporalBearerGuard {
 
 impl From<Bearer> for TemporalBearerGuard {
     fn from(bearer: Bearer) -> Self {
-        let expires_at = bearer
-            .expires_in
-            .map(|expires_in| Utc::now() + Duration::seconds(expires_in as i64));
+        let expires_at = bearer.expires_in.map(|expires_in| {
+            Utc::now() + Duration::seconds(expires_in.min(MAX_EXPIRES_IN) as i64)
+        });
         Self { bearer, expires_at }
     }
 }
+
+// Clamp a hostile `expires_in` to a sane maximum so the sum with
+// `Utc::now()` cannot overflow, see #94.
+const MAX_EXPIRES_IN: u64 = 100 * 365 * 24 * 60 * 60;
 
 #[cfg(test)]
 mod tests {
@@ -169,6 +173,20 @@ mod tests {
         assert_eq!(None, bearer.scope);
         assert_eq!(None, bearer.refresh_token);
         assert_eq!(None, bearer.expires_in);
+    }
+
+    #[test]
+    fn from_response_huge_expires_in_does_not_panic() {
+        let json = r#"
+            {
+                "token_type":"Bearer",
+                "access_token":"aaaaaaaa",
+                "expires_in":18446744073709551615
+            }
+        "#;
+        let bearer: Bearer = serde_json::from_str(json).unwrap();
+        let guard: TemporalBearerGuard = bearer.into();
+        assert_eq!(false, guard.expired());
     }
 
     #[test]
