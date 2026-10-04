@@ -13,6 +13,32 @@ use crate::{
 /// Given an auth_code and auth options, request the token, decode, and validate
 /// it. This validation is specific to Microsoft OIDC provider, it skips issuer
 /// validation.
+///
+/// # Issuer pinning for Microsoft
+///
+/// Microsoft serves different issuer forms depending on the endpoint type, and
+/// this provider is built for the multi-tenant ones (`common`,
+/// `organizations`, `consumers`), where the discovery document reports a
+/// template:
+///
+/// ```text
+/// https://login.microsoftonline.com/{tenantid}/v2.0
+/// ```
+///
+/// The tenant is then never pinned end-to-end:
+///
+/// - discovery accepts the `{tenantid}` template as a wildcard segment (see
+///   [`crate::discovered`]), and
+/// - this provider skips issuer validation, because the ID token carries the
+///   tenant-specific issuer (`https://login.microsoftonline.com/{actual
+///   tenant}/v2.0`), which can never equal the configured template.
+///
+/// If you know your tenant up front, prefer a tenant-specific issuer (e.g.
+/// `https://login.microsoftonline.com/<tenant-id>/v2.0`) and the regular
+/// [`crate::Client::authenticate`] flow: discovery pins the issuer exactly and
+/// the generic token validation applies. If you stay multi-tenant, pinning the
+/// tenant is your job - validate the `tid` claim of the ID token against the
+/// tenants you expect.
 pub async fn authenticate<C: CompactJson + Claims, P: Provider + Configurable>(
     client: &Client<P, C>,
     auth_code: &str,

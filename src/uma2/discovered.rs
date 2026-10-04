@@ -77,6 +77,7 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
 }
 
 pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma2Config, Error> {
+    let requested = issuer.clone();
     let mut issuer = issuer.clone();
     issuer
         .path_segments_mut()
@@ -84,5 +85,6 @@ pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma
         .extend(&[".well-known", "uma2-configuration"]);
     let resp = client.get(issuer).send().await?;
     let config: Uma2Config = crate::http::json(resp).await.map_err(Error::from)?;
+    crate::discovered::validate_discovered_issuer(&requested, &config.config.issuer)?;
     Ok(config)
 }
