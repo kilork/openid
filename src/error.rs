@@ -117,6 +117,9 @@ pub enum ClientError {
     /// Missing refresh token.
     MissingRefreshToken,
 
+    /// Secure connection is required.
+    Insecure(url::Url),
+
     /// Response exceeds the maximum allowed size.
     ResponseTooBig {
         /// Actual response size.
@@ -137,6 +140,7 @@ impl fmt::Display for ClientError {
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => write!(f, "{err}"),
             ClientError::MissingRefreshToken => write!(f, "Missing refresh token"),
+            ClientError::Insecure(ref url) => write!(f, "Url must use TLS: '{url}'"),
             ClientError::ResponseTooBig { size, max } => {
                 write!(
                     f,
@@ -158,6 +162,8 @@ impl error::Error for ClientError {
             #[cfg(feature = "uma2")]
             ClientError::Uma2(ref err) => Some(err),
             ClientError::MissingRefreshToken => None,
+            // [url::Url] does not implement [std::error::Error]
+            ClientError::Insecure(_) => None,
             ClientError::ResponseTooBig { .. } => None,
         }
     }

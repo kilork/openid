@@ -21,6 +21,7 @@ use crate::{
         Userinfo as ErrorUserinfo,
     },
     pkce::{Pkce, generate_s256_pkce},
+    security::EndpointSecurity,
     standard_claims_subject::StandardClaimsSubject,
     validation::{
         validate_token_aud, validate_token_exp, validate_token_issuer, validate_token_nonce,
@@ -28,6 +29,12 @@ use crate::{
 };
 
 /// OpenID Connect 1.0 / OAuth 2.0 client.
+///
+/// Every provider endpoint this client fetches or posts to must use https, so
+/// an id token cannot be obtained or verified over a connection that is not
+/// protected by TLS. See [Client::allow_insecure_endpoints] for the explicit
+/// opt-out for development providers, and [Client::discover_insecure] when the
+/// provider is discovered, since discovery is a request of its own.
 #[derive(Debug, Clone)]
 pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// OAuth provider.
@@ -52,6 +59,9 @@ pub struct Client<P = Discovered, C: CompactJson + Claims = StandardClaims> {
     /// PKCE parameters.
     pub pkce: Option<Pkce>,
 
+    /// Whether provider endpoints must use https.
+    pub(crate) endpoint_security: EndpointSecurity,
+
     marker: PhantomData<C>,
 }
 
@@ -70,6 +80,19 @@ macro_rules! wrong_key {
 impl<C: CompactJson + Claims> Client<Discovered, C> {
     /// Constructs a client from an issuer url and client parameters via
     /// discovery
+    ///
+    /// The issuer, the discovered endpoints and the JWK set must use https.
+    /// Use [Client::discover_insecure] for a development provider like Keycloak
+    /// at `http://localhost:8080`.
+    ///
+    /// # Errors
+    ///
+    /// - [Error::Insecure] if the issuer, the discovered endpoints or the JWK
+    ///   set url is not https
+    /// - [Error::Http] if the discovery or JWK set request fails
+    /// - [Error::ClientError] if a response is too big or is not valid JSON
+    /// - [Error::Validation] if the discovered issuer mismatches the requested
+    ///   issuer
     pub async fn discover(
         id: String,
         secret: impl Into<Option<String>>,
@@ -79,8 +102,36 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         Self::discover_with_client(reqwest::Client::new(), id, secret, redirect, issuer).await
     }
 
+    /// Same as [Client::discover], but allows provider endpoints that are not
+    /// https.
+    ///
+    /// Every provider endpoint carries credentials, so this is meant only for
+    /// development providers, e.g. Keycloak at `http://localhost:8080`. The
+    /// returned client keeps allowing non-https endpoints for its lifetime; see
+    /// [Client::allow_insecure_endpoints].
+    ///
+    /// # Errors
+    ///
+    /// Same as [Client::discover], except that a non-https issuer, endpoint or
+    /// JWK set url is accepted.
+    pub async fn discover_insecure(
+        id: String,
+        secret: impl Into<Option<String>>,
+        redirect: impl Into<Option<String>>,
+        issuer: Url,
+    ) -> Result<Self, Error> {
+        Self::discover_with_client_insecure(reqwest::Client::new(), id, secret, redirect, issuer)
+            .await
+    }
+
     /// Constructs a client from an issuer url and client parameters via
-    /// discovery
+    /// discovery, using the given http client.
+    ///
+    /// See [Client::discover].
+    ///
+    /// # Errors
+    ///
+    /// Same as [Client::discover].
     pub async fn discover_with_client(
         http_client: reqwest::Client,
         id: String,
@@ -88,19 +139,67 @@ impl<C: CompactJson + Claims> Client<Discovered, C> {
         redirect: impl Into<Option<String>>,
         issuer: Url,
     ) -> Result<Self, Error> {
-        let config = discovered::discover(&http_client, issuer).await?;
-        let jwks = discovered::jwks(&http_client, config.jwks_uri.clone()).await?;
-
-        let provider = config.into();
-
-        Ok(Self::new(
-            provider,
+        Self::discover_with_client_and_security(
+            http_client,
             id,
             secret,
             redirect,
+            issuer,
+            EndpointSecurity::RequireHttps,
+        )
+        .await
+    }
+
+    /// Same as [Client::discover_with_client], but allows provider endpoints
+    /// that are not https.
+    ///
+    /// See [Client::discover_insecure].
+    ///
+    /// # Errors
+    ///
+    /// Same as [Client::discover].
+    pub async fn discover_with_client_insecure(
+        http_client: reqwest::Client,
+        id: String,
+        secret: impl Into<Option<String>>,
+        redirect: impl Into<Option<String>>,
+        issuer: Url,
+    ) -> Result<Self, Error> {
+        Self::discover_with_client_and_security(
             http_client,
-            Some(jwks),
-        ))
+            id,
+            secret,
+            redirect,
+            issuer,
+            EndpointSecurity::AllowInsecure,
+        )
+        .await
+    }
+
+    async fn discover_with_client_and_security(
+        http_client: reqwest::Client,
+        id: String,
+        secret: impl Into<Option<String>>,
+        redirect: impl Into<Option<String>>,
+        issuer: Url,
+        security: EndpointSecurity,
+    ) -> Result<Self, Error> {
+        let config = discovered::discover(&http_client, issuer, security).await?;
+        let jwks = match security {
+            EndpointSecurity::RequireHttps => {
+                discovered::jwks(&http_client, config.jwks_uri.clone()).await?
+            }
+            EndpointSecurity::AllowInsecure => {
+                discovered::jwks_insecure(&http_client, config.jwks_uri.clone()).await?
+            }
+        };
+
+        let provider = config.into();
+
+        let mut client = Self::new(provider, id, secret, redirect, http_client, Some(jwks));
+        client.endpoint_security = security;
+
+        Ok(client)
     }
 }
 
@@ -392,73 +491,70 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     where
         U: StandardClaimsSubject,
     {
-        match self.config().userinfo_endpoint {
-            Some(ref url) => {
-                let auth_code = token.bearer.access_token.to_string();
+        let url = userinfo_endpoint(self.config(), self.endpoint_security)?;
 
-                let response = self
-                    .http_client
-                    .get(url.clone())
-                    .bearer_auth(auth_code)
-                    .send()
-                    .await?
-                    .error_for_status()?;
+        let auth_code = token.bearer.access_token.to_string();
 
-                let content_type = response
-                    .headers()
-                    .get(&CONTENT_TYPE)
-                    .and_then(|content_type| content_type.to_str().ok())
-                    .ok_or(ErrorUserinfo::MissingContentType)?;
+        let response = self
+            .http_client
+            .get(url.clone())
+            .bearer_auth(auth_code)
+            .send()
+            .await?
+            .error_for_status()?;
 
-                let mime_type = match content_type {
-                    "application/json" => mime::APPLICATION_JSON,
-                    content_type => content_type.parse::<mime::Mime>().map_err(|_| {
-                        ErrorUserinfo::ParseContentType {
-                            content_type: content_type.to_string(),
-                        }
-                    })?,
-                };
+        let content_type = response
+            .headers()
+            .get(&CONTENT_TYPE)
+            .and_then(|content_type| content_type.to_str().ok())
+            .ok_or(ErrorUserinfo::MissingContentType)?;
 
-                let info: U = match (mime_type.type_(), mime_type.subtype().as_str()) {
-                    (mime::APPLICATION, "json") => {
-                        let info_value: Value =
-                            crate::http::json(response).await.map_err(Error::from)?;
-                        if info_value.get("error").is_some() {
-                            let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
-                            return Err(Error::ClientError(oauth2_error.into()));
-                        }
-                        serde_json::from_value(info_value)?
+        let mime_type =
+            match content_type {
+                "application/json" => mime::APPLICATION_JSON,
+                content_type => content_type.parse::<mime::Mime>().map_err(|_| {
+                    ErrorUserinfo::ParseContentType {
+                        content_type: content_type.to_string(),
                     }
-                    (mime::APPLICATION, "jwt") => {
-                        let jwt = response.text().await?;
-                        let mut jwt_encoded: Compact<U, Empty> = Compact::new_encoded(&jwt);
-                        self.decode_token(&mut jwt_encoded)?;
-                        let (_, info) = jwt_encoded.unwrap_decoded();
-                        info
-                    }
-                    _ => {
-                        return Err(ErrorUserinfo::WrongContentType {
-                            content_type: content_type.to_string(),
-                            body: response.bytes().await?.to_vec(),
-                        }
-                        .into());
-                    }
-                };
+                })?,
+            };
 
-                let claims = token.id_token.as_ref().map(|x| x.payload()).transpose()?;
-                if let Some(claims) = claims {
-                    let info_sub = info.sub().map_err(ErrorUserinfo::from)?;
-                    if claims.sub() != info_sub {
-                        let expected = info_sub.to_string();
-                        let actual = claims.sub().to_string();
-                        return Err(ErrorUserinfo::MismatchSubject { expected, actual }.into());
-                    }
+        let info: U = match (mime_type.type_(), mime_type.subtype().as_str()) {
+            (mime::APPLICATION, "json") => {
+                let info_value: Value = crate::http::json(response).await.map_err(Error::from)?;
+                if info_value.get("error").is_some() {
+                    let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
+                    return Err(Error::ClientError(oauth2_error.into()));
                 }
-
-                Ok(info)
+                serde_json::from_value(info_value)?
             }
-            None => Err(ErrorUserinfo::NoUrl.into()),
+            (mime::APPLICATION, "jwt") => {
+                let jwt = response.text().await?;
+                let mut jwt_encoded: Compact<U, Empty> = Compact::new_encoded(&jwt);
+                self.decode_token(&mut jwt_encoded)?;
+                let (_, info) = jwt_encoded.unwrap_decoded();
+                info
+            }
+            _ => {
+                return Err(ErrorUserinfo::WrongContentType {
+                    content_type: content_type.to_string(),
+                    body: response.bytes().await?.to_vec(),
+                }
+                .into());
+            }
+        };
+
+        let claims = token.id_token.as_ref().map(|x| x.payload()).transpose()?;
+        if let Some(claims) = claims {
+            let info_sub = info.sub().map_err(ErrorUserinfo::from)?;
+            if claims.sub() != info_sub {
+                let expected = info_sub.to_string();
+                let actual = claims.sub().to_string();
+                return Err(ErrorUserinfo::MismatchSubject { expected, actual }.into());
+            }
         }
+
+        Ok(info)
     }
 
     /// Get a token introspection json document for a given token at the
@@ -486,66 +582,61 @@ impl<C: CompactJson + Claims, P: Provider + Configurable> Client<P, C> {
     where
         I: CompactJson,
     {
-        match self.config().introspection_endpoint {
-            Some(ref url) => {
-                let access_token = token.bearer.access_token.to_string();
+        let url = introspection_endpoint(self.config(), self.endpoint_security)?;
 
-                let body = {
-                    let mut body = Serializer::new(String::new());
-                    body.append_pair("token", &access_token);
-                    body.finish()
-                };
+        let access_token = token.bearer.access_token.to_string();
 
-                let response = self
-                    .http_client
-                    .post(url.clone())
-                    .basic_auth(&self.client_id, self.client_secret.as_ref())
-                    .header(ACCEPT, "application/json")
-                    .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-                    .body(body)
-                    .send()
-                    .await?
-                    .error_for_status()?;
+        let body = {
+            let mut body = Serializer::new(String::new());
+            body.append_pair("token", &access_token);
+            body.finish()
+        };
 
-                let content_type = response
-                    .headers()
-                    .get(&CONTENT_TYPE)
-                    .and_then(|content_type| content_type.to_str().ok())
-                    .ok_or(ErrorIntrospection::MissingContentType)?;
+        let response = self
+            .http_client
+            .post(url.clone())
+            .basic_auth(&self.client_id, self.client_secret.as_ref())
+            .header(ACCEPT, "application/json")
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await?
+            .error_for_status()?;
 
-                let mime_type = match content_type {
-                    "application/json" => mime::APPLICATION_JSON,
-                    content_type => content_type.parse::<mime::Mime>().map_err(|_| {
-                        ErrorIntrospection::ParseContentType {
-                            content_type: content_type.to_string(),
-                        }
-                    })?,
-                };
+        let content_type = response
+            .headers()
+            .get(&CONTENT_TYPE)
+            .and_then(|content_type| content_type.to_str().ok())
+            .ok_or(ErrorIntrospection::MissingContentType)?;
 
-                let info: TokenIntrospection<I> =
-                    match (mime_type.type_(), mime_type.subtype().as_str()) {
-                        (mime::APPLICATION, "json") => {
-                            let info_value: Value =
-                                crate::http::json(response).await.map_err(Error::from)?;
-                            if info_value.get("error").is_some() {
-                                let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
-                                return Err(Error::ClientError(oauth2_error.into()));
-                            }
-                            serde_json::from_value(info_value)?
-                        }
-                        _ => {
-                            return Err(ErrorIntrospection::WrongContentType {
-                                content_type: content_type.to_string(),
-                                body: response.bytes().await?.to_vec(),
-                            }
-                            .into());
-                        }
-                    };
+        let mime_type = match content_type {
+            "application/json" => mime::APPLICATION_JSON,
+            content_type => content_type.parse::<mime::Mime>().map_err(|_| {
+                ErrorIntrospection::ParseContentType {
+                    content_type: content_type.to_string(),
+                }
+            })?,
+        };
 
-                Ok(info)
+        let info: TokenIntrospection<I> = match (mime_type.type_(), mime_type.subtype().as_str()) {
+            (mime::APPLICATION, "json") => {
+                let info_value: Value = crate::http::json(response).await.map_err(Error::from)?;
+                if info_value.get("error").is_some() {
+                    let oauth2_error: OAuth2Error = serde_json::from_value(info_value)?;
+                    return Err(Error::ClientError(oauth2_error.into()));
+                }
+                serde_json::from_value(info_value)?
             }
-            None => Err(ErrorIntrospection::NoUrl.into()),
-        }
+            _ => {
+                return Err(ErrorIntrospection::WrongContentType {
+                    content_type: content_type.to_string(),
+                    body: response.bytes().await?.to_vec(),
+                }
+                .into());
+            }
+        };
+
+        Ok(info)
     }
 }
 
@@ -586,6 +677,7 @@ where
             http_client,
             jwks,
             pkce: Some(generate_s256_pkce()),
+            endpoint_security: EndpointSecurity::RequireHttps,
             marker: PhantomData,
         }
     }
@@ -817,10 +909,33 @@ where
         self.pkce = Some(generate_s256_pkce());
     }
 
+    /// Allows this client to talk to provider endpoints that are not https.
+    ///
+    /// Provider endpoints carry credentials, so every one of them must use
+    /// https: the token endpoint carries the client secret (or the user
+    /// credentials in the password grant), the userinfo and introspection
+    /// endpoints carry bearer tokens, and the JWK set decides which keys can
+    /// sign id tokens. This is the explicit opt-out for development providers,
+    /// e.g. Keycloak at `http://localhost:8080`.
+    ///
+    /// Prefer [Client::discover_insecure] when the provider is discovered,
+    /// since discovery itself is a request that has to be allowed to use
+    /// http before the client exists. See also
+    /// [jwks_insecure](crate::jwks_insecure) for the standalone JWK set
+    /// helper.
+    pub fn allow_insecure_endpoints(&mut self) {
+        self.endpoint_security = EndpointSecurity::AllowInsecure;
+    }
+
     async fn post_token(&self, body: String) -> Result<Value, ClientError> {
+        let token_uri = self
+            .endpoint_security
+            .check(self.provider.token_uri())
+            .map_err(ClientError::Insecure)?;
+
         let response = self
             .http_client
-            .post(self.provider.token_uri().clone())
+            .post(token_uri.clone())
             .basic_auth(&self.client_id, self.client_secret.as_ref())
             .header(ACCEPT, "application/json")
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
@@ -861,6 +976,41 @@ where
     }
 }
 
+/// Returns the userinfo endpoint of the provider, enforcing the endpoint
+/// security policy.
+///
+/// # Errors
+///
+/// - [ErrorUserinfo::NoUrl] if the provider has no userinfo endpoint
+/// - [Error::Insecure] if the url is not https and the client allows only https
+///   endpoints
+fn userinfo_endpoint(config: &Config, security: EndpointSecurity) -> Result<&Url, Error> {
+    let url = config
+        .userinfo_endpoint
+        .as_ref()
+        .ok_or(ErrorUserinfo::NoUrl)?;
+    security.check(url).map_err(Error::Insecure)?;
+    Ok(url)
+}
+
+/// Returns the token introspection endpoint of the provider, enforcing the
+/// endpoint security policy.
+///
+/// # Errors
+///
+/// - [ErrorIntrospection::NoUrl] if the provider has no token introspection
+///   endpoint
+/// - [Error::Insecure] if the url is not https and the client allows only https
+///   endpoints
+fn introspection_endpoint(config: &Config, security: EndpointSecurity) -> Result<&Url, Error> {
+    let url = config
+        .introspection_endpoint
+        .as_ref()
+        .ok_or(ErrorIntrospection::NoUrl)?;
+    security.check(url).map_err(Error::Insecure)?;
+    Ok(url)
+}
+
 /// Carries over values the authorization server omitted from a refresh
 /// response, so the refreshed token stays usable. See [`Client::refresh_token`]
 /// for the specification references.
@@ -877,7 +1027,7 @@ fn carry_over_missing(new_token: &mut Bearer, previous: &Bearer) {
 mod tests {
     use url::Url;
 
-    use super::{Client, carry_over_missing};
+    use super::{Client, carry_over_missing, introspection_endpoint, userinfo_endpoint};
     use crate::{
         Bearer, Config, IdToken, StandardClaims,
         configurable::Configurable,
@@ -885,7 +1035,122 @@ mod tests {
         options::Options,
         pkce::{Pkce, PkceSha256},
         provider::Provider,
+        security::EndpointSecurity,
     };
+
+    /// A minimal provider config, with the optional endpoints under test.
+    fn config_with(userinfo: Option<&str>, introspection: Option<&str>) -> Config {
+        let mut value = serde_json::json!({
+            "issuer": "https://example.com",
+            "authorization_endpoint": "https://example.com/authorize",
+            "token_endpoint": "https://example.com/token",
+            "jwks_uri": "https://example.com/jwks",
+            "response_types_supported": ["code"],
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+        });
+        if let Some(userinfo) = userinfo {
+            value["userinfo_endpoint"] = userinfo.into();
+        }
+        if let Some(introspection) = introspection {
+            value["introspection_endpoint"] = introspection.into();
+        }
+        serde_json::from_value(value).expect("valid config")
+    }
+
+    #[test]
+    fn endpoints_requiring_https_reject_http() {
+        let config = config_with(
+            Some("http://localhost:8080/userinfo"),
+            Some("http://localhost:8080/introspect"),
+        );
+
+        let err = userinfo_endpoint(&config, EndpointSecurity::RequireHttps).unwrap_err();
+        assert!(
+            matches!(&err, Error::Insecure(url) if url.as_str() == "http://localhost:8080/userinfo"),
+            "unexpected error: {err}"
+        );
+
+        let err = introspection_endpoint(&config, EndpointSecurity::RequireHttps).unwrap_err();
+        assert!(
+            matches!(&err, Error::Insecure(url) if url.as_str() == "http://localhost:8080/introspect"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn endpoints_accept_http_when_insecure_is_allowed() {
+        let config = config_with(
+            Some("http://localhost:8080/userinfo"),
+            Some("http://localhost:8080/introspect"),
+        );
+
+        assert_eq!(
+            userinfo_endpoint(&config, EndpointSecurity::AllowInsecure)
+                .expect("userinfo endpoint")
+                .as_str(),
+            "http://localhost:8080/userinfo"
+        );
+        assert_eq!(
+            introspection_endpoint(&config, EndpointSecurity::AllowInsecure)
+                .expect("introspection endpoint")
+                .as_str(),
+            "http://localhost:8080/introspect"
+        );
+    }
+
+    #[test]
+    fn endpoints_accept_https() {
+        let config = config_with(
+            Some("https://example.com/userinfo"),
+            Some("https://example.com/introspect"),
+        );
+
+        assert!(
+            userinfo_endpoint(&config, EndpointSecurity::RequireHttps).is_ok(),
+            "https userinfo endpoint must be accepted"
+        );
+        assert!(
+            introspection_endpoint(&config, EndpointSecurity::RequireHttps).is_ok(),
+            "https introspection endpoint must be accepted"
+        );
+    }
+
+    #[test]
+    fn missing_endpoints_are_reported_as_missing() {
+        let config = config_with(None, None);
+
+        let err = userinfo_endpoint(&config, EndpointSecurity::RequireHttps).unwrap_err();
+        assert!(
+            matches!(err, Error::Userinfo(crate::error::Userinfo::NoUrl)),
+            "unexpected error: {err}"
+        );
+
+        let err = introspection_endpoint(&config, EndpointSecurity::RequireHttps).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::Introspection(crate::error::Introspection::NoUrl)
+            ),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn client_requires_https_until_it_is_allowed() {
+        let mut client: Client<Test, StandardClaims> = Client::new(
+            Test::new(),
+            String::from("client_id"),
+            None::<String>,
+            None::<String>,
+            reqwest::Client::new(),
+            None,
+        );
+
+        assert_eq!(client.endpoint_security, EndpointSecurity::RequireHttps);
+        client.allow_insecure_endpoints();
+        assert_eq!(client.endpoint_security, EndpointSecurity::AllowInsecure);
+    }
 
     struct Test {
         auth_uri: Url,

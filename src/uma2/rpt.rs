@@ -143,9 +143,14 @@ where
             Uma2AuthenticationMethod::Bearer => format!("Bearer {:}", token),
         };
 
+        let token_uri = self
+            .endpoint_security
+            .check(self.provider.token_uri())
+            .map_err(ClientError::Insecure)?;
+
         let response = self
             .http_client
-            .post(self.provider.token_uri().clone())
+            .post(token_uri.clone())
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .header(AUTHORIZATION, auth_method.as_str())
             .body(body)
@@ -191,6 +196,10 @@ where
         let Some(url) = self.provider.permission_uri().cloned() else {
             return Err(ClientError::Uma2(NoPermissionsEndpoint));
         };
+
+        self.endpoint_security
+            .check(&url)
+            .map_err(ClientError::Insecure)?;
 
         let response = self
             .http_client

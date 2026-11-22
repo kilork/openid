@@ -5,6 +5,7 @@ use url::Url;
 use crate::{
     Config, Configurable, Provider,
     error::{Error, Mismatch, Validation},
+    security::EndpointSecurity,
 };
 
 /// A discovered provider.
@@ -55,7 +56,16 @@ impl Discovered {
 
 /// Discovers provider configuration, validating the issuer of the discovered
 /// configuration against the requested issuer.
-pub async fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
+///
+/// The issuer and the urls it returns are checked with `security`: a
+/// development provider reached over plain http has to opt in with
+/// [EndpointSecurity::AllowInsecure].
+pub async fn discover(
+    client: &Client,
+    issuer: Url,
+    security: EndpointSecurity,
+) -> Result<Config, Error> {
+    security.check(&issuer).map_err(Error::Insecure)?;
     let well_known = well_known_url(&issuer, &[".well-known", "openid-configuration"])?;
 
     let resp = client.get(well_known).send().await?.error_for_status()?;
@@ -127,7 +137,9 @@ pub fn validate_discovered_issuer(requested: &Url, discovered: &Url) -> Result<(
 /// The fetched keys are used for ID token signature verification, so only
 /// point this at the `jwks_uri` of a provider you trust.
 pub async fn jwks(client: &Client, url: Url) -> Result<JWKSet<Empty>, Error> {
-    validate_https(&url)?;
+    EndpointSecurity::RequireHttps
+        .check(&url)
+        .map_err(Error::Insecure)?;
     let resp = client.get(url).send().await?.error_for_status()?;
     resp.json().await.map_err(Error::from)
 }
@@ -168,7 +180,9 @@ pub async fn jwks_with_max_size(
     url: Url,
     max_response_size: usize,
 ) -> Result<JWKSet<Empty>, Error> {
-    validate_https(&url)?;
+    EndpointSecurity::RequireHttps
+        .check(&url)
+        .map_err(Error::Insecure)?;
     jwks_insecure_with_max_size(client, url, max_response_size).await
 }
 
@@ -190,26 +204,12 @@ pub async fn jwks_insecure_with_max_size(
         .map_err(Error::from)
 }
 
-/// Errors if the url is not https.
-fn validate_https(url: &Url) -> Result<(), Error> {
-    if url.scheme() != "https" {
-        return Err(Error::Insecure(url.clone()));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     fn url(s: &str) -> Url {
         Url::parse(s).expect("valid url")
-    }
-
-    #[test]
-    fn validate_https_rejects_http_and_accepts_https() {
-        assert!(validate_https(&url("http://localhost:8080/realms/test")).is_err());
-        assert!(validate_https(&url("https://example.com/jwks")).is_ok());
     }
 
     #[test]

@@ -258,6 +258,10 @@ where
         url: url::Url,
         token: String,
     ) -> Result<T, ClientError> {
+        self.endpoint_security
+            .check(&url)
+            .map_err(ClientError::Insecure)?;
+
         let json = self
             .http_client
             .get(url)
@@ -273,6 +277,10 @@ where
     }
 
     pub(crate) async fn delete(&self, url: url::Url, token: String) -> Result<(), ClientError> {
+        self.endpoint_security
+            .check(&url)
+            .map_err(ClientError::Insecure)?;
+
         let json = self
             .http_client
             .delete(url)
@@ -302,6 +310,10 @@ where
         T: DeserializeOwned,
         B: Serialize,
     {
+        self.endpoint_security
+            .check(&url)
+            .map_err(ClientError::Insecure)?;
+
         let json = self
             .http_client
             .request(method, url)

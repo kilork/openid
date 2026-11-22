@@ -16,6 +16,8 @@ Implements [PKCE: Proof Key for Code Exchange by OAuth Public Clients](https://d
 
 It supports Microsoft OIDC with feature `microsoft`. This adds methods for authentication and token validation, those skip issuer check.
 
+Provider endpoints are required to use https. The discovery document, the JWK set, the token endpoint (it carries the client secret, or the user credentials in the password grant), the userinfo and introspection endpoints (they carry bearer tokens) and the UMA2 endpoints all reject plain `http` with `Error::Insecure` or `ClientError::Insecure`. For a development provider, like Keycloak on `http://localhost:8080`, use the explicit opt-out: `discover_insecure`, `discover_uma2_insecure` and `jwks_insecure`, or `allow_insecure_endpoints` on a client you already have. There are no boolean flags for this.
+
 Originally developed as a quick adaptation to leverage async/await functionality, based on [inth-oauth2](https://crates.io/crates/inth-oauth2) and [oidc](https://crates.io/crates/oidc), the library has since evolved into a mature and robust solution, offering expanded features and improved performance.
 
 Using [reqwest](https://crates.io/crates/reqwest) for the HTTP client and [biscuit](https://crates.io/crates/biscuit) for Javascript Object Signing and Encryption (JOSE).
