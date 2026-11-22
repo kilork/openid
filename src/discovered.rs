@@ -55,18 +55,34 @@ impl Discovered {
 
 /// Discovers provider configuration, validating the issuer of the discovered
 /// configuration against the requested issuer.
-pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error> {
-    let requested = issuer.clone();
-    issuer
-        .path_segments_mut()
+pub async fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
+    let well_known = well_known_url(&issuer, &[".well-known", "openid-configuration"])?;
+
+    let resp = client.get(well_known).send().await?.error_for_status()?;
+    let config: Config = crate::http::json(resp).await.map_err(Error::from)?;
+    validate_discovered_issuer(&issuer, &config.issuer)?;
+    Ok(config)
+}
+
+/// Builds the well-known url of a provider document for an issuer.
+///
+/// Any terminating `/` is removed before the well-known path is appended, as
+/// required by [OpenID Connect Discovery
+/// 4.1](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest)
+/// and [RFC 8414
+/// 3.1](https://www.rfc-editor.org/rfc/rfc8414.html#section-3.1): appending to a
+/// path that has a trailing slash would otherwise produce a `//` in the url.
+///
+/// # Errors
+///
+/// - [Error::CannotBeABase] if the url cannot be used as a base url
+fn well_known_url(issuer: &Url, suffix: &[&str]) -> Result<Url, Error> {
+    let mut url = issuer.clone();
+    url.path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
         .pop_if_empty()
-        .extend(&[".well-known", "openid-configuration"]);
-
-    let resp = client.get(issuer).send().await?.error_for_status()?;
-    let config: Config = crate::http::json(resp).await.map_err(Error::from)?;
-    validate_discovered_issuer(&requested, &config.issuer)?;
-    Ok(config)
+        .extend(suffix);
+    Ok(url)
 }
 
 /// Validates that the issuer of the discovered provider configuration matches
@@ -194,6 +210,49 @@ mod test {
     fn validate_https_rejects_http_and_accepts_https() {
         assert!(validate_https(&url("http://localhost:8080/realms/test")).is_err());
         assert!(validate_https(&url("https://example.com/jwks")).is_ok());
+    }
+
+    #[test]
+    fn well_known_url_appends_to_the_issuer_path() {
+        const SUFFIX: [&str; 2] = [".well-known", "openid-configuration"];
+        let cases = [
+            (
+                "https://example.com",
+                "https://example.com/.well-known/openid-configuration",
+            ),
+            (
+                "https://example.com/",
+                "https://example.com/.well-known/openid-configuration",
+            ),
+            (
+                "https://example.com/oidc",
+                "https://example.com/oidc/.well-known/openid-configuration",
+            ),
+            // A terminating slash must be removed, not doubled: see issue #105.
+            (
+                "https://example.com/oidc/",
+                "https://example.com/oidc/.well-known/openid-configuration",
+            ),
+            (
+                "http://localhost:8080/auth/realms/test/",
+                "http://localhost:8080/auth/realms/test/.well-known/openid-configuration",
+            ),
+        ];
+
+        for (issuer, expected) in cases {
+            let actual = well_known_url(&url(issuer), &SUFFIX).expect("well known url");
+            assert_eq!(actual, url(expected), "issuer {issuer}");
+        }
+    }
+
+    #[test]
+    fn well_known_url_rejects_cannot_be_a_base_issuer() {
+        let issuer = url("mailto:joe@example.com");
+        let err = well_known_url(&issuer, &[".well-known", "openid-configuration"]).unwrap_err();
+        assert!(
+            matches!(err, Error::CannotBeABase),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
