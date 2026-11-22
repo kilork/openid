@@ -3,6 +3,7 @@ use url::Url;
 
 use crate::{
     Claims, Client, Config, Configurable, Provider,
+    discovered::well_known_url,
     error::Error,
     uma2::{Uma2Config, Uma2Provider},
 };
@@ -76,15 +77,72 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
     }
 }
 
+/// Well-known path segments of the UMA2 discovery document.
+const WELL_KNOWN_SUFFIX: [&str; 2] = [".well-known", "uma2-configuration"];
+
 pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma2Config, Error> {
-    let requested = issuer.clone();
-    let mut issuer = issuer.clone();
-    issuer
-        .path_segments_mut()
-        .map_err(|_| Error::CannotBeABase)?
-        .extend(&[".well-known", "uma2-configuration"]);
-    let resp = client.get(issuer).send().await?;
+    let well_known = well_known_url(issuer, &WELL_KNOWN_SUFFIX)?;
+    let resp = client.get(well_known).send().await?;
     let config: Uma2Config = crate::http::json(resp).await.map_err(Error::from)?;
-    crate::discovered::validate_discovered_issuer(&requested, &config.config.issuer)?;
+    crate::discovered::validate_discovered_issuer(issuer, &config.config.issuer)?;
     Ok(config)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn url(s: &str) -> Url {
+        Url::parse(s).expect("valid url")
+    }
+
+    #[test]
+    fn well_known_url_uses_the_uma2_suffix() {
+        let cases = [
+            (
+                "https://example.com",
+                "https://example.com/.well-known/uma2-configuration",
+            ),
+            (
+                "https://example.com/",
+                "https://example.com/.well-known/uma2-configuration",
+            ),
+            (
+                "https://example.com/auth/realms/test",
+                "https://example.com/auth/realms/test/.well-known/uma2-configuration",
+            ),
+            // A terminating slash must be removed, not doubled: see issue #106.
+            (
+                "https://example.com/auth/realms/test/",
+                "https://example.com/auth/realms/test/.well-known/uma2-configuration",
+            ),
+        ];
+
+        for (issuer, expected) in cases {
+            let actual = well_known_url(&url(issuer), &WELL_KNOWN_SUFFIX).expect("well known url");
+            assert_eq!(actual, url(expected), "issuer {issuer}");
+        }
+    }
+
+    #[test]
+    fn uma2_issuer_is_pinned_to_the_requested_url_including_its_trailing_slash() {
+        // The terminating slash is only dropped for the well-known url; the
+        // discovered issuer must still match what the caller asked for.
+        let requested = url("https://example.com/auth/realms/test/");
+        assert!(crate::discovered::validate_discovered_issuer(&requested, &requested).is_ok());
+        assert!(
+            crate::discovered::validate_discovered_issuer(
+                &requested,
+                &url("https://example.com/auth/realms/test")
+            )
+            .is_err()
+        );
+        assert!(
+            crate::discovered::validate_discovered_issuer(
+                &requested,
+                &url("https://attacker.example/auth/realms/test/")
+            )
+            .is_err()
+        );
+    }
 }

@@ -76,7 +76,7 @@ pub async fn discover(client: &Client, issuer: Url) -> Result<Config, Error> {
 /// # Errors
 ///
 /// - [Error::CannotBeABase] if the url cannot be used as a base url
-fn well_known_url(issuer: &Url, suffix: &[&str]) -> Result<Url, Error> {
+pub(crate) fn well_known_url(issuer: &Url, suffix: &[&str]) -> Result<Url, Error> {
     let mut url = issuer.clone();
     url.path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
