@@ -60,6 +60,7 @@ pub async fn discover(client: &Client, mut issuer: Url) -> Result<Config, Error>
     issuer
         .path_segments_mut()
         .map_err(|_| Error::CannotBeABase)?
+        .pop_if_empty()
         .extend(&[".well-known", "openid-configuration"]);
 
     let resp = client.get(issuer).send().await?.error_for_status()?;
