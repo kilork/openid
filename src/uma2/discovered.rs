@@ -5,6 +5,7 @@ use crate::{
     Claims, Client, Config, Configurable, Provider,
     discovered::well_known_url,
     error::Error,
+    security::EndpointSecurity,
     uma2::{Uma2Config, Uma2Provider},
 };
 
@@ -53,27 +54,84 @@ impl Uma2Provider for DiscoveredUma2 {
 impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
     /// Constructs a client from an issuer url and client parameters via
     /// discovery
+    ///
+    /// The issuer, the discovered endpoints and the JWK set must use https. Use
+    /// [Client::discover_uma2_insecure] for a development provider like
+    /// Keycloak at `http://localhost:8080`.
+    ///
+    /// # Errors
+    ///
+    /// - [Error::Insecure] if the issuer, the discovered endpoints or the JWK
+    ///   set url is not https
+    /// - [Error::Http] if the discovery or JWK set request fails
+    /// - [Error::ClientError] if a response is too big or is not valid JSON
+    /// - [Error::Validation] if the discovered issuer mismatches the requested
+    ///   issuer
     pub async fn discover_uma2(
         id: String,
         secret: String,
         redirect: impl Into<Option<String>>,
         issuer: Url,
     ) -> Result<Self, Error> {
+        Self::discover_uma2_internal(EndpointSecurity::RequireHttps, id, secret, redirect, issuer)
+            .await
+    }
+
+    /// Same as [Client::discover_uma2], but allows provider endpoints that are
+    /// not https.
+    ///
+    /// # Errors
+    ///
+    /// Same as [Client::discover_uma2], except that a non-https issuer,
+    /// endpoint or JWK set url is accepted.
+    pub async fn discover_uma2_insecure(
+        id: String,
+        secret: String,
+        redirect: impl Into<Option<String>>,
+        issuer: Url,
+    ) -> Result<Self, Error> {
+        Self::discover_uma2_internal(
+            EndpointSecurity::AllowInsecure,
+            id,
+            secret,
+            redirect,
+            issuer,
+        )
+        .await
+    }
+
+    async fn discover_uma2_internal(
+        security: EndpointSecurity,
+        id: String,
+        secret: String,
+        redirect: impl Into<Option<String>>,
+        issuer: Url,
+    ) -> Result<Self, Error> {
         let http_client = reqwest::Client::new();
-        let uma2_config = discover_uma2(&http_client, &issuer).await?;
-        let jwks =
-            crate::discovered::jwks(&http_client, uma2_config.config.jwks_uri.clone()).await?;
+        let uma2_config = discover_uma2_with_security(&http_client, &issuer, security).await?;
+        let jwks_uri = uma2_config.config.jwks_uri.clone();
+        let jwks = match security {
+            EndpointSecurity::RequireHttps => {
+                crate::discovered::jwks(&http_client, jwks_uri).await?
+            }
+            EndpointSecurity::AllowInsecure => {
+                crate::discovered::jwks_insecure(&http_client, jwks_uri).await?
+            }
+        };
 
         let provider = uma2_config.into();
 
-        Ok(Self::new(
+        let mut client = Self::new(
             provider,
             id,
             secret,
             redirect.into(),
             http_client,
             Some(jwks),
-        ))
+        );
+        client.endpoint_security = security;
+
+        Ok(client)
     }
 }
 
@@ -85,6 +143,7 @@ const WELL_KNOWN_SUFFIX: [&str; 2] = [".well-known", "uma2-configuration"];
 ///
 /// # Errors
 ///
+/// - [Error::Insecure] if the issuer is not https and https is required
 /// - [Error::CannotBeABase] if the issuer url cannot be used as a base url
 /// - [Error::Http] if the request fails or the response status is not
 ///   successful
@@ -93,6 +152,40 @@ const WELL_KNOWN_SUFFIX: [&str; 2] = [".well-known", "uma2-configuration"];
 /// - [Error::Validation] if the discovered issuer mismatches the requested
 ///   issuer
 pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma2Config, Error> {
+    discover_uma2_with_security(client, issuer, EndpointSecurity::RequireHttps).await
+}
+
+/// Same as [discover_uma2], but allows an issuer that is not https.
+///
+/// # Errors
+///
+/// Same as [discover_uma2], except that a non-https issuer is accepted.
+pub async fn discover_uma2_insecure(
+    client: &reqwest::Client,
+    issuer: &Url,
+) -> Result<Uma2Config, Error> {
+    discover_uma2_with_security(client, issuer, EndpointSecurity::AllowInsecure).await
+}
+
+/// Discovers the UMA2 provider configuration with the given endpoint security
+/// policy.
+///
+/// # Errors
+///
+/// - [Error::Insecure] if the policy requires https and the issuer is not https
+/// - [Error::CannotBeABase] if the issuer url cannot be used as a base url
+/// - [Error::Http] if the request fails or the response status is not
+///   successful
+/// - [Error::ClientError] if the response is too big or is not a valid UMA2
+///   configuration
+/// - [Error::Validation] if the discovered issuer mismatches the requested
+///   issuer
+pub(crate) async fn discover_uma2_with_security(
+    client: &reqwest::Client,
+    issuer: &Url,
+    security: EndpointSecurity,
+) -> Result<Uma2Config, Error> {
+    security.check(issuer).map_err(Error::Insecure)?;
     let well_known = well_known_url(issuer, &WELL_KNOWN_SUFFIX)?;
     let resp = client.get(well_known).send().await?.error_for_status()?;
     let config: Uma2Config = crate::http::json(resp).await.map_err(Error::from)?;

@@ -27,6 +27,7 @@ pub mod pkce;
 mod prompt;
 pub mod provider;
 mod response_mode;
+mod security;
 mod standard_claims;
 mod standard_claims_subject;
 mod token;
