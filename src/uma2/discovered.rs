@@ -80,9 +80,21 @@ impl<C: CompactJson + Claims> Client<DiscoveredUma2, C> {
 /// Well-known path segments of the UMA2 discovery document.
 const WELL_KNOWN_SUFFIX: [&str; 2] = [".well-known", "uma2-configuration"];
 
+/// Discovers the UMA2 provider configuration, validating the issuer of the
+/// discovered configuration against the requested issuer.
+///
+/// # Errors
+///
+/// - [Error::CannotBeABase] if the issuer url cannot be used as a base url
+/// - [Error::Http] if the request fails or the response status is not
+///   successful
+/// - [Error::ClientError] if the response is too big or is not a valid UMA2
+///   configuration
+/// - [Error::Validation] if the discovered issuer mismatches the requested
+///   issuer
 pub async fn discover_uma2(client: &reqwest::Client, issuer: &Url) -> Result<Uma2Config, Error> {
     let well_known = well_known_url(issuer, &WELL_KNOWN_SUFFIX)?;
-    let resp = client.get(well_known).send().await?;
+    let resp = client.get(well_known).send().await?.error_for_status()?;
     let config: Uma2Config = crate::http::json(resp).await.map_err(Error::from)?;
     crate::discovered::validate_discovered_issuer(issuer, &config.config.issuer)?;
     Ok(config)
